@@ -26,7 +26,7 @@ def generate_batches_from_files(files, batchsize, class_type=None, f_size=None, 
     if isinstance(files, list): pass
     elif isinstance(files, basestring): files = [files]
     elif isinstance(files, dict): files = reduce(lambda x, y: x + y, files.values())
-    else: raise TypeError('passed variabel need to be list/np.array/str/dict[dict]')
+    else: raise TypeError('passed variable need to be list/np.array/str/dict[dict]')
 
     eventInfo = {}
     while 1:
@@ -90,6 +90,34 @@ def encode_targets(y_dict, batchsize, class_type=None):
     else:
         raise ValueError('Class type ' + str(class_type) + ' not supported!')
     return train_y
+
+def read_EventInfo_from_files(files, maxNumEvents=0):
+    """
+    Returns EventInfo dict from a single/list h5py file(s).
+    :param string files: Full filepath of the input h5 file, e.g. '[/path/to/file/file.hdf5]'.
+    :return: dict eventInfo: Yields a dict which contains the stored mc/data info.
+    """
+
+    if isinstance(files, list): pass
+    elif isinstance(files, basestring): files = [files]
+    elif isinstance(files, dict): files = reduce(lambda x, y: x + y, files.values())
+    else: raise TypeError('passed variable need to be list/np.array/str/dict[dict]')
+
+    if maxNumEvents < 0: raise ValueError('Maximum number of events should be larger 0 (or zero for all)')
+
+    eventInfo = {}
+    for idx, filename in enumerate(files):
+        f = h5py.File(str(filename), "r")
+        for key in f.keys():
+            if key in ['wfs', 'gains']: continue
+            if idx == 0:    eventInfo[key] = np.asarray(f[key])
+            else:           eventInfo[key] = np.concatenate((eventInfo[key], np.asarray(f[key])))
+        f.close()
+        if maxNumEvents > 0 and len(eventInfo.values()[0]) >= maxNumEvents: break
+    if maxNumEvents == 0 or len(eventInfo.values()[0]) <= maxNumEvents:
+        return eventInfo
+    else:
+        return { key: value[ 0 : maxNumEvents ] for key,value in eventInfo.items() }
 
 def predict_events(model, generator):
     X, Y_TRUE, EVENT_INFO = generator.next()

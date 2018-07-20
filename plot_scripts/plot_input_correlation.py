@@ -3,53 +3,31 @@
 """ dummy """
 
 import numpy as np
-# import matplotlib as mpl
-# mpl.use('PDF')
 import matplotlib.pyplot as plt
 import os
 from sys import path
-path.append('/home/hpc/capm/mppi053h/UVWireRecon')
+path.append('/home/hpc/capm/sn0515/bbDiscriminator/')
 import utilities.generator as gen
 
 def main():
-    folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/UV-wire/Data/GammaExp_WFs_Uni_MC_SS/'
-    # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/UV-wire/Data/EnergyCorrectionNewNew/'
-    folderOUT = '/home/vault/capm/sn0515/PhD/DeepLearning/UV-wire/TrainingRuns/Dummy/'
+    source = 'gamma'
+    # source = 'bb0n'
+    # source = 'bb0nE'
+    folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/%s_WFs_Uni_MC/'%(source)
+    folderOUT = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Plots/'
 
     files = [os.path.join(folderIN, f) for f in os.listdir(folderIN) if os.path.isfile(os.path.join(folderIN, f))]
     # print files
-    number = gen.getNumEvents(files)/len(files)
-    generator = gen.generate_batches_from_files(files, number, class_type='energy_and_UV_position', f_size=None, yield_mc_info=2)
 
-    for idx in xrange(len(files)):
-        # if idx >= 5:
-        #     break
-        print idx, 'of', len(files)
-        # wf_temp, ys_temp, event_info = generator.next()
-        event_info = generator.next()
-        # print event_info['MCTime'][0:1,0]
-        # print event_info['CCCollectionTime'][0:1,0]
-        # print event_info['G4Time'][0:1,0]
-        # print ''
-        ys_temp = np.asarray([event_info['MCEnergy'][:,0],
-                         event_info['MCPosU'][:,0],
-                         event_info['MCPosV'][:,0],
-                         event_info['MCPosZ'][:,0],
-                         event_info['MCTime'][:,0]])
-        # z_position = event_info['MCPosZ'][:, 0].reshape((1, 1))
-        # ys_temp = np.append(ys_temp, z_position, axis=1)
+    EventInfo = gen.read_EventInfo_from_files(files, 45000)
+    print source, len(EventInfo.values()[0])
 
-        if idx == 0:
-            ys = ys_temp
-        else:
-            ys = np.concatenate((ys, ys_temp),axis=1)
-        # print ys.shape
+    ys = np.asarray([EventInfo['QValue'],
+                     EventInfo['MCPosX'][:,0],
+                     EventInfo['MCPosY'][:,0],
+                     EventInfo['MCPosZ'][:,0]])
 
-
-    plot_input_correlations(ys, folderOUT)
-
-    # timeToZfit(ys, folderOUT)
-
+    plot_input_correlations(ys, folderOUT+'Correlation_matrix_' + source + '.png')
 
     # plot_input_correlations_heat(ys, folderOUT)
     return
@@ -120,16 +98,16 @@ def plot_input_correlations_heat(ys, folderOUT):
     # return
 
 
-def plot_input_correlations(ys, folderOUT):
+def plot_input_correlations(ys, fileOUT):
 
     from pandas.plotting import scatter_matrix
     from pandas import DataFrame
 
     ys = np.swapaxes(ys, 0, 1)
 
-    ys_data = DataFrame(ys, columns=['Energy', 'U-Position', 'V-Position', 'z-Position', 'Time'])
+    ys_data = DataFrame(ys, columns=['Energy', 'X-Position', 'Y-Position', 'Z-Position'])
 
-    sm = scatter_matrix(ys_data, figsize=(25, 25), alpha=0.02, hist_kwds={'bins': 50})     # diagonal='kde')
+    sm = scatter_matrix(ys_data, figsize=(25, 25), alpha=0.1, hist_kwds={'bins': 60}) #, diagonal='kde')
 
     for s in sm.reshape(-1):
         s.xaxis.label.set_size(16)
@@ -141,7 +119,7 @@ def plot_input_correlations(ys, folderOUT):
     # plt.draw()
     # raw_input('')
 
-    plt.savefig(folderOUT + 'Correlation_matrix' + '.png')
+    plt.savefig(fileOUT, bbox_inches='tight')
 
     return
 
