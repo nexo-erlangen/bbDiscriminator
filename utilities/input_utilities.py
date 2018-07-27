@@ -36,20 +36,20 @@ def parseInput():
                                      formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-o', '--out', dest='folderOUT', type=str, default='Dummy', help='folderOUT Path')
-    parser.add_argument('-i', '--in', dest='folderIN', type=str, default='/home/vault/capm/sn0515/PhD/DeepLearning/UV-wire/Data/', help='folderIN Path')
-    parser.add_argument('-r', '--runs', dest='folderRUNS', type=str, default='/home/vault/capm/sn0515/PhD/DeepLearning/UV-wire/TrainingRuns/', help='folderRUNS Path')
+    parser.add_argument('-i', '--in', dest='folderIN', type=str, default='/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/', help='folderIN Path')
+    parser.add_argument('-r', '--runs', dest='folderRUNS', type=str, default='/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/', help='folderRUNS Path')
     parser.add_argument('-m', '--model', dest='folderMODEL', type=str, default='Dummy', help='folderMODEL Path')
-    parser.add_argument('-t', '--targets', type=str, dest='var_targets', default='energy_and_position', help='Targets to train the network against')
+    parser.add_argument('-t', '--targets', type=str, dest='var_targets', default='binary_bb_gamma', help='Targets to train the network against')
     parser.add_argument('-a', '--arch', type=str, dest='cnn_arch', default='DCNN', choices=['DCNN', 'ResNet', 'Inception'], help='Choose network architecture')
     parser.add_argument('-g', '--gpu', type=int, dest='num_gpu', default=1, choices=[1, 2, 3, 4], help='Number of GPUs')
     parser.add_argument('-e', '--epoch', type=int, dest='num_epoch', default=1, help='nb Epochs')
     parser.add_argument('-b', '--batch', type=int, dest='batchsize', default=16, help='Batch Size')
     parser.add_argument('-w', '--weights', dest='num_weights', type=int, default=0, help='Load weights from Epoch')
-    parser.add_argument('-s', '--source', dest='sources', default=['GammaExp'], nargs="*", choices=['GammaExp', 'Th228', 'Co60', 'Ra226'], help='sources for training/validation')
+    parser.add_argument('-s', '--source', dest='sources', default=['mixed'], nargs="*", choices=['mixed', 'bb0n', 'bb0nE', 'gamma', 'Th228', 'Co60', 'Ra226'], help='sources for training/validation')
     parser.add_argument('-p', '--position', dest='position', default=['Uni'], nargs='*', choices=['Uni', 'S2', 'S5', 'S8'], help='source position')
     parser.add_argument('-v', '--valid', dest='mode', default='train', choices=['train', 'mc', 'data'], help='mode of operation (train/eval (mc/data))')
     parser.add_argument('--events', dest='events', default=2000, type=int, help='number of validation events')
-    parser.add_argument('--multi', dest='multiplicity', default='SS', choices=['SS', 'SS+MS'], help='Choose Event Multiplicity (SS / SS+MS)')
+    parser.add_argument('--phase', dest='phase', default='2', choices=['1', '2'], help='EXO Phase (1/2)')
     parser.add_argument('--resume', dest='resume', action='store_true', help='Resume Training')
     parser.add_argument('--test', dest='test', action='store_true', help='Only reduced data')
     parser.add_argument('--new', dest='new', action='store_true', help='Process new validation events')
@@ -68,11 +68,11 @@ def parseInput():
     args.endings = {}
     for source in args.sources:
         for pos in args.position:
-            args.endings[source+pos+mode+args.multiplicity] = source + '_WFs_' + pos + '_' + mode + '_' + args.multiplicity
+            args.endings[source+pos+mode] = source + '_WFs_' + pos + '_' + mode + '_P' + args.phase
 
     endings_to_pop = []
     for ending in args.endings:
-        folderIN[ending] = os.path.join(os.path.join(args.folderIN,''), args.endings[ending])
+        folderIN[ending] = os.path.join(os.path.join(os.path.join(args.folderIN,''), args.endings[ending]),'')
         try:
             if not os.path.isdir(folderIN[ending]): raise OSError
             print 'Input  Folder:\t\t', folderIN[ending]
@@ -99,7 +99,7 @@ def parseInput():
     print 'Output Folder:\t\t'  , args.folderOUT
     if args.resume: print 'Model Folder:\t\t', args.folderMODEL
     print 'Number of GPU:\t\t', args.num_gpu
-    print 'Load Epoch:\t', args.num_weights
+    print 'Load Epoch:\t\t', args.num_weights
     print 'Number of Epoch:\t', args.num_epoch
     print 'BatchSize:\t\t', args.batchsize, '\n'
 

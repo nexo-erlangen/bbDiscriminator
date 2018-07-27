@@ -14,7 +14,7 @@ def generate_batches_from_files(files, batchsize, class_type=None, f_size=None, 
     Generator that returns batches of images ('xs') and labels ('ys') from a h5 file.
     :param string files: Full filepath of the input h5 file, e.g. '[/path/to/file/file.hdf5]'.
     :param int batchsize: Size of the batches that should be generated.
-    :param str class_type: String identifier to specify the exact target variables. i.e. 'energy_and_position'
+    :param str class_type: String identifier to specify the exact target variables. i.e. 'binary_bb_gamma'
     :param int/None f_size: Specifies the filesize (#images) of the .h5 file if not the whole .h5 file
                        but a fraction of it (e.g. 10%) should be used for yielding the xs/ys arrays.
                        This is important if you run fit_generator(epochs>1) with a filesize (and hence # of steps) that is smaller than the .h5 file.
@@ -48,12 +48,10 @@ def generate_batches_from_files(files, batchsize, class_type=None, f_size=None, 
 
             for i in lst:
                 if not yield_mc_info == 2:
-                    xs_i = f['wfs'][ i : i + batchsize ]
+                    xs_i = f['wfs'][ i : i + batchsize, [0,2]] # Select batch and select U-wires only
                     xs_i = np.swapaxes(xs_i, 0, 1)
                     xs_i = np.swapaxes(xs_i, 2, 3)
-                ys_i = ys[i: i + batchsize]
-                # print ys_i
-                # raw_input('')
+                ys_i = ys[ i : i + batchsize ]
 
                 if   yield_mc_info == 0:    yield (list(xs_i), ys_i)
                 elif yield_mc_info == 1:    yield (list(xs_i), ys_i) + ({ key: eventInfo[key][i: i + batchsize] for key in eventInfo.keys() },)
@@ -65,28 +63,15 @@ def encode_targets(y_dict, batchsize, class_type=None):
     """
     Encodes the labels (classes) of the images.
     :param dict y_dict: Dictionary that contains ALL event class information for the events of a batch.
-    :param str class_type: String identifier to specify the exact output classes. i.e. energy_and_position
+    :param str class_type: String identifier to specify the exact output classes. i.e. binary_bb_gamma
     :return: ndarray(ndim=2) train_y: Array that contains the encoded class label information of the input events of a batch.
     """
 
     if class_type == None:
         train_y = np.zeros(batchsize, dtype='float32')
-    elif class_type == 'energy_and_position' or class_type == 'position_and_energy':
-        train_y = np.zeros((batchsize, 4), dtype='float32')
-        train_y[:,0] = y_dict['MCEnergy'][:,0]  # energy
-        train_y[:,1] = y_dict['MCPosX'][:,0]  # dir_x
-        train_y[:,2] = y_dict['MCPosY'][:,0]  # dir_y
-        train_y[:,3] = y_dict['MCTime'][:,0]  # time (to calculate dir_z)
-    elif class_type == 'energy':
+    elif class_type == 'binary_bb_gamma':
         train_y = np.zeros((batchsize, 1), dtype='float32')
-        train_y[:,0] = y_dict['MCEnergy'][:,0]  # energy
-    elif class_type == 'position_x_y':
-        train_y = np.zeros((batchsize, 2), dtype='float32')
-        train_y[:,0] = y_dict['MCPosX'][:,0]  # dir_x
-        train_y[:,1] = y_dict['MCPosY'][:,0]  # dir_y
-    elif class_type == 'time':
-        train_y = np.zeros((batchsize, 1), dtype='float32')
-        train_y[:, 0] = y_dict['MCTime'][:, 0]  # time (to calculate dir_z)
+        train_y[:, 0] = y_dict['ID']  # event ID (0: gamma, 1: bb)
     else:
         raise ValueError('Class type ' + str(class_type) + ' not supported!')
     return train_y

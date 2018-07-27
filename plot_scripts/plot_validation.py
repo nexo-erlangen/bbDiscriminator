@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
 import os
 from sys import path
-path.append('/home/hpc/capm/sn0515/UVWireRecon')
+path.append('/home/hpc/capm/sn0515/bbDiscriminator')
 from math import atan2,degrees
 
 # ----------------------------------------------------------

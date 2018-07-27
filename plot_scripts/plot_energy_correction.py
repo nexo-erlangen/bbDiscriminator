@@ -30,7 +30,7 @@ def exponentialpot3(x, par0, par1, par3):
     return par0 * (np.power(x-par3,3.0)) * np.exp((x-par3)/par1)
 
 folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/gamma_WFs_Uni_MC/'
-folderINold = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/gamma_WFs_Uni_MC-old/'
+folderINold = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/gamma_WFs_Uni_MC-3/'
 folderOUT = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Plots/'
 
 files = [os.path.join(folderIN, f) for f in os.listdir(folderIN) if os.path.isfile(os.path.join(folderIN, f))]
@@ -47,14 +47,14 @@ data = np.asarray([EventInfo['QValue']])
 dataOLD = np.asarray([EventInfoOLD['QValue']])
 
 plt.ion()
-hist, bin_edges = np.histogram(data/1.e3, bins=100, range=(1.0, 3.0), density=True)
-histOLD, bin_edges = np.histogram(dataOLD/1.e3, bins=100, range=(1.0, 3.0), density=True)
+hist, bin_edges = np.histogram(data/1.e3, bins=50, range=(1.0, 3.0), density=True)
+histOLD, bin_edges = np.histogram(dataOLD/1.e3, bins=50, range=(1.0, 3.0), density=True)
 bin_centres = (bin_edges[:-1] + bin_edges[1:]) / 2
 
 coeff = [2.e0, -0.9]
 for i in range(5):
     try:
-        coeff, var_matrix = curve_fit(exponential, bin_centres, histOLD, p0=coeff)
+        coeff, var_matrix = curve_fit(exponential, bin_centres, hist, p0=coeff)
         coeff_err = np.sqrt(np.absolute(np.diag(var_matrix)))
     except:
         print 'fit did not work'
@@ -68,7 +68,7 @@ print '======================================='
 coefflin = [-4.e-1, 1.1]
 for i in range(5):
     try:
-        coefflin, var_matrix = curve_fit(linear, bin_centres, histOLD, p0=coefflin)
+        coefflin, var_matrix = curve_fit(linear, bin_centres, hist, p0=coefflin)
         coeff_err = np.sqrt(np.absolute(np.diag(var_matrix)))
     except:
         print 'fit did not work'
@@ -81,7 +81,7 @@ print '======================================='
 
 
 plt.clf()
-# plt.step(bin_centres, hist, where='mid', label='current')
+plt.step(bin_centres, hist, where='mid', label='current')
 plt.step(bin_centres, histOLD, where='mid', label='old')
 
 plt.plot(bin_centres, exponential(bin_centres, *coeff), label='Exp')

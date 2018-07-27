@@ -17,9 +17,8 @@ def main():
     folderOUT = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Plots/'
 
     files = [os.path.join(folderIN, f) for f in os.listdir(folderIN) if os.path.isfile(os.path.join(folderIN, f))]
-    # print files
 
-    EventInfo = gen.read_EventInfo_from_files(files, 45000)
+    EventInfo = gen.read_EventInfo_from_files(files, 20000)
     print source, len(EventInfo.values()[0])
 
     ys = np.asarray([EventInfo['QValue'],
@@ -107,7 +106,7 @@ def plot_input_correlations(ys, fileOUT):
 
     ys_data = DataFrame(ys, columns=['Energy', 'X-Position', 'Y-Position', 'Z-Position'])
 
-    sm = scatter_matrix(ys_data, figsize=(25, 25), alpha=0.1, hist_kwds={'bins': 60}) #, diagonal='kde')
+    sm = scatter_matrix(ys_data, figsize=(25, 25), alpha=0.25, hist_kwds={'bins': 60}) #, diagonal='kde')
 
     for s in sm.reshape(-1):
         s.xaxis.label.set_size(16)

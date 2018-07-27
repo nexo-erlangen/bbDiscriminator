@@ -7,7 +7,7 @@ import os
 from sys import path
 from keras import backend as K
 
-path.append('/home/hpc/capm/sn0515/UVWireRecon')
+path.append('/home/hpc/capm/sn0515/bbDiscriminator')
 
 from utilities.input_utilities import *
 from utilities.generator import *

@@ -1,4 +1,78 @@
-def create_shared_dcnn_network():
+def create_shared_dcnn_network_U():
+    from keras.models import Model
+    from keras.layers import Input
+    from keras.layers import Dense
+    from keras.layers import Flatten
+    from keras.layers.convolutional import Conv2D
+    from keras.layers.pooling import MaxPooling2D
+    from keras.layers.merge import concatenate
+    from keras import regularizers
+
+    regu = regularizers.l2(1.e-2)
+    init = "glorot_uniform"
+    act = "relu"
+    padding = "same"
+
+    # Input layers
+    visible_1 = Input(shape=(350, 38, 1), name='Wire_1')
+    visible_2 = Input(shape=(350, 38, 1), name='Wire_2')
+
+    # Define U-wire shared layers
+    shared_conv_1 = Conv2D(16, kernel_size=(5, 3), name='Shared_1', padding=padding, kernel_initializer=init, activation=act, kernel_regularizer=regu)
+    shared_conv_2 = Conv2D(32, kernel_size=(5, 3), name='Shared_2', padding=padding, kernel_initializer=init, activation=act, kernel_regularizer=regu)
+    shared_pooling_1 = MaxPooling2D(pool_size=(4, 2), name='Shared_3', padding=padding)
+    shared_conv_3 = Conv2D(64, kernel_size=(3, 3), name='Shared_4', padding=padding, kernel_initializer=init, activation=act, kernel_regularizer=regu)
+    shared_conv_4 = Conv2D(128, kernel_size=(3, 3), name='Shared_5', padding=padding, kernel_initializer=init, activation=act, kernel_regularizer=regu)
+    shared_pooling_2 = MaxPooling2D(pool_size=(4, 2), name='Shared_6', padding=padding)
+    shared_conv_5 = Conv2D(256, kernel_size=(3, 3), name='Shared_7', padding=padding, kernel_initializer=init, activation=act, kernel_regularizer=regu)
+    shared_pooling_3 = MaxPooling2D(pool_size=(2, 2), name='Shared_8', padding=padding)
+
+    # U-wire feature layers
+    encoded_1_1 = shared_conv_1(visible_1)
+    encoded_1_2 = shared_conv_1(visible_2)
+    encoded_2_1 = shared_conv_2(encoded_1_1)
+    encoded_2_2 = shared_conv_2(encoded_1_2)
+    pooled_1_1 = shared_pooling_1(encoded_2_1)
+    pooled_1_2 = shared_pooling_1(encoded_2_2)
+
+    encoded_3_1 = shared_conv_3(pooled_1_1)
+    encoded_3_2 = shared_conv_3(pooled_1_2)
+    encoded_4_1 = shared_conv_4(encoded_3_1)
+    encoded_4_2 = shared_conv_4(encoded_3_2)
+    pooled_2_1 = shared_pooling_2(encoded_4_1)
+    pooled_2_2 = shared_pooling_2(encoded_4_2)
+
+    encoded_5_1 = shared_conv_5(pooled_2_1)
+    encoded_5_2 = shared_conv_5(pooled_2_2)
+    pooled_3_1 = shared_pooling_3(encoded_5_1)
+    pooled_3_2 = shared_pooling_3(encoded_5_2)
+
+    shared_flat = Flatten(name='flat1')
+
+    # Flatten
+    flat_1 = shared_flat(pooled_3_1)
+    flat_2 = shared_flat(pooled_3_2)
+
+    # Define shared Dense Layers
+    shared_dense_1 = Dense(16, name='Shared_1_Dense', activation=act, kernel_initializer=init, kernel_regularizer=regu)  # 32
+    shared_dense_2 = Dense(4, name='Shared_2_Dense', activation=act, kernel_initializer=init, kernel_regularizer=regu)  # 8
+
+    # Dense Layers
+    dense_1_1 = shared_dense_1(flat_1)
+    dense_1_2 = shared_dense_1(flat_2)
+
+    dense_2_1 = shared_dense_2(dense_1_1)
+    dense_2_2 = shared_dense_2(dense_1_2)
+
+    # Merge Dense Layers
+    merge_1_2 = concatenate([dense_2_1, dense_2_2], name='Flat_1_and_2')
+
+    # Output
+    output = Dense(1, name='Output', activation=act, kernel_initializer=init)(merge_1_2)
+
+    return Model(inputs=[visible_1, visible_2], outputs=[output])
+
+def create_shared_dcnn_network_UV():
     from keras.utils import plot_model
     from keras.models import Model
     from keras.layers import Input
@@ -12,11 +86,11 @@ def create_shared_dcnn_network():
     regu = regularizers.l2(0.01)
 
     # Input layers
-    visible_U_1 = Input(shape=(2048, 38, 1), name='U_Wire_1')
-    visible_U_2 = Input(shape=(2048, 38, 1), name='U_Wire_2')
+    visible_U_1 = Input(shape=(400, 38, 1), name='U_Wire_1')
+    visible_U_2 = Input(shape=(400, 38, 1), name='U_Wire_2')
 
-    visible_V_1 = Input(shape=(2048, 38, 1), name='V_Wire_1')
-    visible_V_2 = Input(shape=(2048, 38, 1), name='V_Wire_2')
+    visible_V_1 = Input(shape=(400, 38, 1), name='V_Wire_1')
+    visible_V_2 = Input(shape=(400, 38, 1), name='V_Wire_2')
 
     # Define U-wire shared layers
     shared_conv_1_U = Conv2D(16, kernel_size=(5, 3), activation='relu', name='Shared_1_U', kernel_regularizer=regu)
