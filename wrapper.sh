@@ -1,4 +1,4 @@
-tamp() {
+timestamp() {
 	date +"%y%m%d-%H%M"
 }
 timestampSEC() {
@@ -30,19 +30,19 @@ done
 if [[ $TEST == "true" ]] ||  [[ $PREPARE == "true" ]] ; then
 	RUN=Dummy
 else
-	if [[ $RESUME=="true" ]] && [[ ! -z $FOLDERRUNS$PARENT ]]
+	if [[ $RESUME = "true" ]] && [[ ! -z $FOLDERRUNS$PARENT ]]
 	then
 		if [ -d $FOLDERRUNS$PARENT ]
 		then
 			if [[ $SINGLE != "true" ]]
 			then
-				RUN=$PARENT$TIMESTAMP
-				if [ -d $FOLDERRUNS$PARENT$TIMESTAMP ]
+				RUN=$PARENT/$TIMESTAMP
+				if [ -d $FOLDERRUNS$PARENT/$TIMESTAMP ]
 				then
-					RUN=$PARENT$TIMESTAMPSEC
+					RUN=$PARENT/$TIMESTAMPSEC
 				fi
 			else
-				RUN=$PARENT
+				RUN=$PARENT/
 			fi
 		else
 			echo "Model Folder (${PARENT}) does not exist" ; exit 1
@@ -70,5 +70,3 @@ else
 	echo
 	echo "Run Folder:   " $FOLDERRUNS$RUN
 fi
-
-

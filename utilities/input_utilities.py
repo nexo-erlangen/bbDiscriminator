@@ -48,6 +48,7 @@ def parseInput():
     parser.add_argument('-s', '--source', dest='sources', default=['mixed'], nargs="*", choices=['mixed', 'bb0n', 'bb0nE', 'gamma', 'Th228', 'Co60', 'Ra226'], help='sources for training/validation')
     parser.add_argument('-p', '--position', dest='position', default=['Uni'], nargs='*', choices=['Uni', 'S2', 'S5', 'S8'], help='source position')
     parser.add_argument('-v', '--valid', dest='mode', default='train', choices=['train', 'mc', 'data'], help='mode of operation (train/eval (mc/data))')
+    parser.add_argument('--tb', dest='tb_logger', action='store_true', help='activate tensorboard logger')
     parser.add_argument('--events', dest='events', default=2000, type=int, help='number of validation events')
     parser.add_argument('--phase', dest='phase', default='2', choices=['1', '2'], help='EXO Phase (1/2)')
     parser.add_argument('--resume', dest='resume', action='store_true', help='Resume Training')
@@ -57,7 +58,7 @@ def parseInput():
 
     if len(sys.argv) == 1:
         parser.print_help()
-        sys.exit(1)
+        raise SystemError
 
     folderIN = {}
 

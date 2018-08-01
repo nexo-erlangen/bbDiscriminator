@@ -10,25 +10,28 @@ path.append('/home/hpc/capm/sn0515/bbDiscriminator/')
 import utilities.generator as gen
 
 def main():
-    source = 'gamma'
-    # source = 'bb0n'
-    # source = 'bb0nE'
-    folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/%s_WFs_Uni_MC/'%(source)
+    # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_Uni_MC_P2/'
+    folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/electron_WFs_Uni_MC_P2/'
     folderOUT = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Plots/'
 
     files = [os.path.join(folderIN, f) for f in os.listdir(folderIN) if os.path.isfile(os.path.join(folderIN, f))]
 
-    EventInfo = gen.read_EventInfo_from_files(files, 20000)
-    print source, len(EventInfo.values()[0])
+    EventInfo = gen.read_EventInfo_from_files(files) #, 5000)
 
     ys = np.asarray([EventInfo['QValue'],
-                     EventInfo['MCPosX'][:,0],
-                     EventInfo['MCPosY'][:,0],
-                     EventInfo['MCPosZ'][:,0]])
+                     EventInfo['MCPosX'],
+                     EventInfo['MCPosY'],
+                     EventInfo['MCPosZ']])
 
-    plot_input_correlations(ys, folderOUT+'Correlation_matrix_' + source + '.png')
+    print 'TOTAL:\t\t', ys.shape[1]
+    print 'gamma:\t\t', ys[:, EventInfo['ID'] == 0].shape[1]
+    print 'bb0nE:\t\t', ys[:, EventInfo['ID'] == 1].shape[1]
+    print 'electron:\t', ys[:, EventInfo['ID'] == 2].shape[1]
 
-    # plot_input_correlations_heat(ys, folderOUT)
+    # plot_input_correlations(ys[:, EventInfo['ID'] == 0], folderOUT + 'Correlation_matrix_gamma.png')
+    # plot_input_correlations(ys[:, EventInfo['ID'] == 1], folderOUT + 'Correlation_matrix_bb0nE.png')
+    plot_input_correlations(ys[:, EventInfo['ID'] == 2], folderOUT + 'Correlation_matrix_electron.png')
+
     return
 
 def plot_input_correlations_heat(ys, folderOUT):
@@ -106,7 +109,7 @@ def plot_input_correlations(ys, fileOUT):
 
     ys_data = DataFrame(ys, columns=['Energy', 'X-Position', 'Y-Position', 'Z-Position'])
 
-    sm = scatter_matrix(ys_data, figsize=(25, 25), alpha=0.25, hist_kwds={'bins': 60}) #, diagonal='kde')
+    sm = scatter_matrix(ys_data, figsize=(25, 25), alpha=0.7, hist_kwds={'bins': 60}) #, diagonal='kde')
 
     for s in sm.reshape(-1):
         s.xaxis.label.set_size(16)
@@ -121,30 +124,6 @@ def plot_input_correlations(ys, fileOUT):
     plt.savefig(fileOUT, bbox_inches='tight')
 
     return
-
-def linearfunc(x, m, t):
-    return m * x + t
-
-def timeToZfit(ys, folderOUT):
-
-    from scipy.optimize import curve_fit
-    import numpy as np
-
-    popt, pcov = curve_fit(linearfunc, ys.T[:, 4], np.abs(ys.T[:, 3]))
-    print popt
-    print np.sqrt(np.diag(pcov))
-
-    a = np.linspace(1000, 1200, 5)
-
-    plt.plot(ys.T[:, 4], np.abs(ys.T[:, 3]), label='data', marker='.')
-    plt.plot(a, linearfunc(a, *popt), color='red')
-    plt.show()
-    plt.draw()
-
-    plt.clf()
-    plt.scatter(ys.T[:, 4], -1.71 * ys.T[:, 4] + 1949.89)
-    plt.show()
-    plt.draw()
 
 # ----------------------------------------------------------
 # Program Start

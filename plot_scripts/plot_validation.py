@@ -2,13 +2,13 @@
 
 import numpy as np
 import matplotlib as mpl
-from plot_scripts.plot_traininghistory import *
 mpl.use('PDF')
 import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
 import os
 from sys import path
 path.append('/home/hpc/capm/sn0515/bbDiscriminator')
+from plot_scripts.plot_traininghistory import *
 from math import atan2,degrees
 
 # ----------------------------------------------------------
@@ -882,6 +882,32 @@ def labelLines(lines,align=True,xvals=None,**kwargs):
 # ----------------------------------------------------------
 # Final Plots
 # ----------------------------------------------------------
+def plot_learning_curve(folderOUT, data):
+    plt.clf()
+    plt.plot(data[1], data[4], label='Validation')
+    plt.plot(data[1], data[2], label='Training')
+    plt.xlabel('Training time [epoch]')
+    plt.ylabel('Loss')
+    plt.grid(True, which='both')
+    # plt.ylim(ymin=7.e2, ymax=2.e4)
+    # plt.gca().set_yscale('log')
+    plt.legend(loc="best")
+    plt.savefig(folderOUT + 'loss.pdf', bbox_inches='tight')
+    plt.clf()
+    plt.close()
+
+    plt.plot(data[1], 100. * data[5], label='Validation')
+    plt.plot(data[1], 100.*data[3], label='Training')
+    plt.grid(True)
+    plt.ylim(ymin=0.0, ymax=100.0)
+    plt.legend(loc="best")
+    plt.xlabel('Training time [epoch]')
+    plt.ylabel('Accuracy [%]')
+    plt.savefig(folderOUT + 'accuracy.pdf', bbox_inches='tight')
+    plt.clf()
+    plt.close()
+
+
 def final_plots(folderOUT, obs):
     if obs == {} :
         print 'final plots \t save.p empty'

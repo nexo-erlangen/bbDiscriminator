@@ -23,6 +23,11 @@ def generate_batches_from_files(files, batchsize, class_type=None, f_size=None, 
     :return: tuple output: Yields a tuple which contains a full batch of images and labels (+ mc_info depending on yield_mc_info).
     """
 
+    try:
+        import keras as ks
+    except ImportError:
+        if not yield_mc_info == 2: raise ImportError
+
     if isinstance(files, list): pass
     elif isinstance(files, basestring): files = [files]
     elif isinstance(files, dict): files = reduce(lambda x, y: x + y, files.values())
@@ -30,7 +35,7 @@ def generate_batches_from_files(files, batchsize, class_type=None, f_size=None, 
 
     eventInfo = {}
     while 1:
-        random.shuffle(files)  # TODO maybe omit in future? # TODO shuffle events between files
+        random.shuffle(files)
         for filename in files:
             f = h5py.File(str(filename), "r")
             if f_size is None: f_size = getNumEvents(filename)
@@ -38,7 +43,7 @@ def generate_batches_from_files(files, batchsize, class_type=None, f_size=None, 
                 #     'is not equal to the f_size of the true .h5 file. Should be ok if you use the tb_callback.')
 
             lst = np.arange(0, f_size, batchsize)
-            # random.shuffle(lst)  #  TODO maybe omit in future?
+            random.shuffle(lst)
 
             # filter the labels we don't want for now
             for key in f.keys():
@@ -48,10 +53,11 @@ def generate_batches_from_files(files, batchsize, class_type=None, f_size=None, 
 
             for i in lst:
                 if not yield_mc_info == 2:
-                    xs_i = f['wfs'][ i : i + batchsize, [0,2]] # Select batch and select U-wires only
+                    xs_i = f['wfs'][i: i + batchsize, [0, 2]]  # Select batch and select U-wires only
+                    # xs_i = f['wfs'][i: i + batchsize]  # Select batch and select U+V-wires
                     xs_i = np.swapaxes(xs_i, 0, 1)
                     xs_i = np.swapaxes(xs_i, 2, 3)
-                ys_i = ys[ i : i + batchsize ]
+                    ys_i = ks.utils.to_categorical(ys[ i : i + batchsize ], 2)
 
                 if   yield_mc_info == 0:    yield (list(xs_i), ys_i)
                 elif yield_mc_info == 1:    yield (list(xs_i), ys_i) + ({ key: eventInfo[key][i: i + batchsize] for key in eventInfo.keys() },)
@@ -107,16 +113,21 @@ def read_EventInfo_from_files(files, maxNumEvents=0):
 def predict_events(model, generator):
     X, Y_TRUE, EVENT_INFO = generator.next()
     Y_PRED = np.asarray(model.predict(X, 10))
+    print Y_TRUE
+    print '====='
+    print Y_PRED
+    exit()
     return (Y_PRED, Y_TRUE, EVENT_INFO)
 
 def get_events(args, files, model, fOUT):
+    print 'entering get events'
     try:
         if args.new: raise IOError
         spec = pickle.load(open(fOUT, "rb"))
         if args.events > len(spec['Y_TRUE']): raise IOError
     except IOError:
-        if model == None: print 'model not found and not events file found' ; exit()
-        events_per_batch = 50
+        if model == None: print 'model not found and not events file found' ; raise SystemError
+        events_per_batch = 20 #50
         if args.events % events_per_batch != 0: raise ValueError('choose event number in multiples of %f events'%(events_per_batch))
         iterations = round_down(args.events, events_per_batch) / events_per_batch
         gen = generate_batches_from_files(files, events_per_batch, class_type=args.var_targets, f_size=None, yield_mc_info=1)

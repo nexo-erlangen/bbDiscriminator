@@ -5,10 +5,10 @@ def create_shared_dcnn_network_U():
     from keras.layers import Flatten
     from keras.layers.convolutional import Conv2D
     from keras.layers.pooling import MaxPooling2D
-    from keras.layers.merge import concatenate
+    from keras.layers.merge import Concatenate, Add
     from keras import regularizers
 
-    regu = regularizers.l2(1.e-2)
+    regu = None #regularizers.l2(1.e-2)
     init = "glorot_uniform"
     act = "relu"
     padding = "same"
@@ -54,8 +54,8 @@ def create_shared_dcnn_network_U():
     flat_2 = shared_flat(pooled_3_2)
 
     # Define shared Dense Layers
-    shared_dense_1 = Dense(16, name='Shared_1_Dense', activation=act, kernel_initializer=init, kernel_regularizer=regu)  # 32
-    shared_dense_2 = Dense(4, name='Shared_2_Dense', activation=act, kernel_initializer=init, kernel_regularizer=regu)  # 8
+    shared_dense_1 = Dense(32, name='Shared_1_Dense', activation=act, kernel_initializer=init, kernel_regularizer=regu)
+    shared_dense_2 = Dense(8, name='Shared_2_Dense', activation=act, kernel_initializer=init, kernel_regularizer=regu)
 
     # Dense Layers
     dense_1_1 = shared_dense_1(flat_1)
@@ -65,10 +65,10 @@ def create_shared_dcnn_network_U():
     dense_2_2 = shared_dense_2(dense_1_2)
 
     # Merge Dense Layers
-    merge_1_2 = concatenate([dense_2_1, dense_2_2], name='Flat_1_and_2')
+    merge_1_2 = Concatenate(name='Flat_1_and_2')([dense_2_1, dense_2_2])
 
     # Output
-    output = Dense(1, name='Output', activation=act, kernel_initializer=init)(merge_1_2)
+    output = Dense(2, name='Output', activation='softmax', kernel_initializer=init)(merge_1_2)
 
     return Model(inputs=[visible_1, visible_2], outputs=[output])
 
