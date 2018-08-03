@@ -33,12 +33,28 @@ class TensorBoardWrapper(ks.callbacks.TensorBoard):
         imgs, tags = None, None
         for s in xrange(self.nb_steps):
             ib, tb = next(self.batch_gen)
+            ib = np.asarray(ib)
             if imgs is None and tags is None:
-                imgs = np.zeros(((self.nb_steps * ib.shape[0],) + ib.shape[1:]), dtype=np.float32)
-                tags = np.zeros(((self.nb_steps * tb.shape[0],) + tb.shape[1:]), dtype=np.uint8)
-            imgs[s * ib.shape[0]:(s + 1) * ib.shape[0]] = ib
+                imgs = np.zeros(((ib.shape[0],) + (self.nb_steps * ib.shape[1],) + ib.shape[2:]), dtype=ib.dtype)
+                tags = np.zeros(((self.nb_steps * tb.shape[0],) + tb.shape[1:]), dtype=tb.dtype)
+            imgs[ : , s * ib.shape[1]:(s + 1) * ib.shape[1]] = ib
             tags[s * tb.shape[0]:(s + 1) * tb.shape[0]] = tb
-        self.validation_data = [imgs, tags, np.ones(imgs.shape[0]), 0.0]
+        self.validation_data = [imgs[0], imgs[1], tags, np.ones(imgs[0].shape[0]), 0.0]
+        # self.validation_data = [list(imgs), tags, np.ones(imgs[0].shape[0]), 0.0]
+        print len(self.validation_data)
+
+        print self.model.inputs[0].shape
+
+        tensors = (self.model.inputs +
+                   self.model.targets +
+                   self.model.sample_weights)
+
+        if self.model.uses_learning_phase:
+            print 'learn phase', K.learning_phase()
+            tensors += [K.learning_phase()]
+
+        print len(tensors)
+
         return super(TensorBoardWrapper, self).on_epoch_end(epoch, logs)
 
 

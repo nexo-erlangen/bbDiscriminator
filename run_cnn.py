@@ -12,7 +12,7 @@ from models.shared_conv import *
 from plot_scripts.plot_traininghistory import *
 
 def main(args):
-    frac_train = {'mixedUniMC': 0.05 } #95}
+    frac_train = {'mixedUniMC': 0.95}
     frac_val   = {'mixedUniMC': 0.05}
 
     splitted_files = splitFiles(args, mode=args.mode, frac_train=frac_train, frac_val=frac_val)
@@ -259,7 +259,7 @@ def fit_model(args, model, files, batchsize, var_targets, epoch, shuffle, n_even
     """
 
     train_steps_per_epoch = int(getNumEvents(files['train']) / batchsize)
-    validation_steps = int(min([getNumEvents(files['val']), 10000]) / batchsize)
+    validation_steps = int(min([getNumEvents(files['val']), 5000]) / batchsize)
     genVal = generate_batches_from_files(files['val'], batchsize=batchsize, class_type=var_targets, yield_mc_info=0)
 
     callbacks = []
@@ -267,8 +267,8 @@ def fit_model(args, model, files, batchsize, var_targets, epoch, shuffle, n_even
     modellogger = ks.callbacks.ModelCheckpoint(args.folderOUT + 'models/weights-{epoch:03d}.hdf5', save_weights_only=True, period=1)
     lrscheduler = ks.callbacks.LearningRateScheduler(LRschedule_stepdecay, verbose=1)
     epochlogger = EpochLevelPerformanceLogger(args=args, files=files['val'], var_targets=var_targets)
-    batchlogger = BatchLevelPerformanceLogger(display=25, skipBatchesVal=5, steps_per_epoch=train_steps_per_epoch, args=args,
-                                              genVal=generate_batches_from_files(files['val'], batchsize=batchsize, class_type=var_targets, yield_mc_info=0))
+    batchlogger = BatchLevelPerformanceLogger(display=25, skipBatchesVal=20, steps_per_epoch=train_steps_per_epoch, args=args,
+                                              genVal=generate_batches_from_files(files['val'], batchsize=batchsize//2, class_type=var_targets, yield_mc_info=0))
     callbacks.append(csvlogger)
     callbacks.append(modellogger)
     callbacks.append(lrscheduler)
@@ -285,10 +285,6 @@ def fit_model(args, model, files, batchsize, var_targets, epoch, shuffle, n_even
     # K.set_value(model.optimizer.lr, 0.00001)
 
     print 'Set learning rate to ' + str(K.get_value(model.optimizer.lr))
-    # # TODO implement lr rate schedule
-    # lr, lr_decay = schedule_learning_rate(model, epoch_i, n_gpu, args.splitted_files['train'], lr_initial=0.003, manual_mode=(False, None, 0.0, None))
-    # lr, lr_decay = schedule_learning_rate(model, epoch_i, n_gpu, train_files, lr_initial=0.003,
-    # #                                       manual_mode=(True, 0.0006, 0.07, lr))
 
     epoch = (int(epoch[0]), int(epoch[1]))
     print 'training from:', epoch
@@ -302,7 +298,7 @@ def fit_model(args, model, files, batchsize, var_targets, epoch, shuffle, n_even
         epochs=epoch[0]+epoch[1],
         initial_epoch=epoch[0],
         verbose=1,
-        max_queue_size=100,
+        max_queue_size=10,
         validation_data=genVal,
         validation_steps=validation_steps,
         callbacks=callbacks)
@@ -311,28 +307,6 @@ def fit_model(args, model, files, batchsize, var_targets, epoch, shuffle, n_even
     print '\tTrain:\t\t%.4f\t\t%.4f'    % tuple(model.evaluate_generator(generate_batches_from_files(files['train'], batchsize, var_targets), steps=50))
     print '\tValid:\t\t%.4f\t\t%.4f'    % tuple(model.evaluate_generator(generate_batches_from_files(files['val']  , batchsize, var_targets), steps=50))
     return model
-
-def save_train_and_test_statistics_to_txt(model, history_train, history_test, epoch, files, batchsize, var_targets):
-    """
-    Function for saving various information during training and testing to a .txt file.
-    """
-
-    with open('models/trained/train_logs/log_' + modelname + '.txt', 'a+') as f_out:
-        f_out.write('--------------------------------------------------------------------------------------------------------\n')
-        f_out.write('\n')
-        f_out.write('Current time: ' + strftime("%Y-%m-%d %H:%M:%S", gmtime()) + '\n')
-        f_out.write('Decayed learning rate to ' + str(lr) + ' before epoch ' + str(epoch) + ' (minus ' + str(lr_decay) + ')\n')
-        f_out.write('Trained in epoch ' + str(epoch) + ' on file ' + str(train_file_no) + ', ' + str(train_file) + '\n')
-        f_out.write('Tested in epoch ' + str(epoch) + ', file ' + str(train_file_no) + ' on test_files ' + str(test_files) + '\n')
-        f_out.write('History for training and testing: \n')
-        f_out.write('Train: ' + str(history_train.history) + '\n')
-        f_out.write('Test: ' + str(history_test) + ' (' + str(model.metrics_names) + ')' + '\n')
-        f_out.write('\n')
-        f_out.write('Additional Info:\n')
-        f_out.write('Batchsize=' + str(batchsize) + ', n_bins=' + str(n_bins) +
-                    ', class_type=' + str(class_type) + '\n' +
-                    'swap_4d_channels=' + str(swap_4d_channels) + ', str_ident=' + str_ident + '\n')
-        f_out.write('\n')
 
 def load_trained_model(args):
     nb_weights = args.num_weights

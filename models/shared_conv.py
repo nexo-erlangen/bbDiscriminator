@@ -2,75 +2,92 @@ def create_shared_dcnn_network_U():
     from keras.models import Model
     from keras.layers import Input
     from keras.layers import Dense
-    from keras.layers import Flatten
+    from keras.layers import Flatten, Dropout
     from keras.layers.convolutional import Conv2D
     from keras.layers.pooling import MaxPooling2D
     from keras.layers.merge import Concatenate, Add
     from keras import regularizers
 
-    regu = None #regularizers.l2(1.e-2)
+    regu = regularizers.l2(1.e-3)
     init = "glorot_uniform"
     act = "relu"
     padding = "same"
+    drop = 0.0
 
     # Input layers
-    visible_1 = Input(shape=(350, 38, 1), name='Wire_1')
-    visible_2 = Input(shape=(350, 38, 1), name='Wire_2')
+    input = []
+    input.append(Input(shape=(350, 38, 1), name='Wire_1'))
+    input.append(Input(shape=(350, 38, 1), name='Wire_2'))
 
-    # Define U-wire shared layers
-    shared_conv_1 = Conv2D(16, kernel_size=(5, 3), name='Shared_1', padding=padding, kernel_initializer=init, activation=act, kernel_regularizer=regu)
-    shared_conv_2 = Conv2D(32, kernel_size=(5, 3), name='Shared_2', padding=padding, kernel_initializer=init, activation=act, kernel_regularizer=regu)
-    shared_pooling_1 = MaxPooling2D(pool_size=(4, 2), name='Shared_3', padding=padding)
-    shared_conv_3 = Conv2D(64, kernel_size=(3, 3), name='Shared_4', padding=padding, kernel_initializer=init, activation=act, kernel_regularizer=regu)
-    shared_conv_4 = Conv2D(128, kernel_size=(3, 3), name='Shared_5', padding=padding, kernel_initializer=init, activation=act, kernel_regularizer=regu)
-    shared_pooling_2 = MaxPooling2D(pool_size=(4, 2), name='Shared_6', padding=padding)
-    shared_conv_5 = Conv2D(256, kernel_size=(3, 3), name='Shared_7', padding=padding, kernel_initializer=init, activation=act, kernel_regularizer=regu)
-    shared_pooling_3 = MaxPooling2D(pool_size=(2, 2), name='Shared_8', padding=padding)
+    layers = []
+    # layers.append(Conv_block(16, k_size=(5, 3), padding=padding, init=init, dropout=drop, max_pooling=None , activ=act, kernel_reg=regu))
+    # layers.append(Conv_block(32, k_size=(5, 3), padding=padding, init=init, dropout=drop, max_pooling=(4,2), activ=act, kernel_reg=regu))
+    # layers.append(Conv_block(64, k_size=(3, 3), padding=padding, init=init, dropout=drop, max_pooling=None, activ=act, kernel_reg=regu))
+    # layers.append(Conv_block(128, k_size=(3, 3), padding=padding, init=init, dropout=drop, max_pooling=(4, 2), activ=act, kernel_reg=regu))
+    # layers.append(Conv_block(256, k_size=(3, 3), padding=padding, init=init, dropout=drop, max_pooling=(2, 2), activ=act, kernel_reg=regu))
+    # # layers.append(Conv_block(256, k_size=(3, 3), padding=padding, init=init, dropout=drop, max_pooling=(2, 2), activ=act, kernel_reg=regu))
 
-    # U-wire feature layers
-    encoded_1_1 = shared_conv_1(visible_1)
-    encoded_1_2 = shared_conv_1(visible_2)
-    encoded_2_1 = shared_conv_2(encoded_1_1)
-    encoded_2_2 = shared_conv_2(encoded_1_2)
-    pooled_1_1 = shared_pooling_1(encoded_2_1)
-    pooled_1_2 = shared_pooling_1(encoded_2_2)
+    layers.append(Conv_block(16, k_size=(5, 3), padding=padding, init=init, dropout=drop, max_pooling=None, activ=act, kernel_reg=regu))
+    layers.append(Conv_block(16, k_size=(5, 3), padding=padding, init=init, dropout=drop, max_pooling=(4, 2), activ=act,
+                             kernel_reg=regu))
+    layers.append(Conv_block(32, k_size=(5, 3), padding=padding, init=init, dropout=drop, max_pooling=None, activ=act,
+                             kernel_reg=regu))
+    layers.append(Conv_block(32, k_size=(5, 3), padding=padding, init=init, dropout=drop, max_pooling=(4, 2), activ=act, kernel_reg=regu))
+    layers.append(Conv_block(64, k_size=(3, 3), padding=padding, init=init, dropout=drop, max_pooling=None, activ=act,
+                             kernel_reg=regu))
+    layers.append(Conv_block(64, k_size=(3, 3), padding=padding, init=init, dropout=drop, max_pooling=(2, 2), activ=act,
+                             kernel_reg=regu))
+    layers.append(
+        Conv_block(128, k_size=(3, 3), padding=padding, init=init, dropout=drop, max_pooling=None, activ=act,
+                   kernel_reg=regu))
+    layers.append(
+        Conv_block(128, k_size=(3, 3), padding=padding, init=init, dropout=drop, max_pooling=(2, 2), activ=act,
+                   kernel_reg=regu))
+    layers.append(
+        Conv_block(256, k_size=(3, 3), padding=padding, init=init, dropout=drop, max_pooling=None, activ=act,
+                   kernel_reg=regu))
+    layers.append(
+        Conv_block(256, k_size=(3, 3), padding=padding, init=init, dropout=drop, max_pooling=(2, 2), activ=act,
+                   kernel_reg=regu))
 
-    encoded_3_1 = shared_conv_3(pooled_1_1)
-    encoded_3_2 = shared_conv_3(pooled_1_2)
-    encoded_4_1 = shared_conv_4(encoded_3_1)
-    encoded_4_2 = shared_conv_4(encoded_3_2)
-    pooled_2_1 = shared_pooling_2(encoded_4_1)
-    pooled_2_2 = shared_pooling_2(encoded_4_2)
+    layers.append([Flatten()])
+    layers.append([Dense(32, activation=act, kernel_initializer=init, kernel_regularizer=regu)])
+    layers.append([Dense(8, activation=act, kernel_initializer=init, kernel_regularizer=regu)])
+    #TODO Flatten list of layers
 
-    encoded_5_1 = shared_conv_5(pooled_2_1)
-    encoded_5_2 = shared_conv_5(pooled_2_2)
-    pooled_3_1 = shared_pooling_3(encoded_5_1)
-    pooled_3_2 = shared_pooling_3(encoded_5_2)
+    paths = []
+    for x_i in input:
+        for layer in sum(layers, []):
+            x_i = layer(x_i)
+        paths.append(x_i)
 
-    shared_flat = Flatten(name='flat1')
+    merge = Concatenate(name='Flat_1_and_2')(paths)
+    output = Dense(2, name='Output', activation='softmax', kernel_initializer=init)(merge)
+    return Model(inputs=input, outputs=output)
 
-    # Flatten
-    flat_1 = shared_flat(pooled_3_1)
-    flat_2 = shared_flat(pooled_3_2)
+def Conv_block(n_filters, k_size=(3,3), padding='same', init='glorot_uniform', dropout=0.0, max_pooling=None, activ='relu', kernel_reg = None):
+    """
+    2D/3D Convolutional block followed by Activation with optional MaxPooling or Dropout.
+    C-(MP)-(D)
+    :param int n_filters: Number of filters used for the convolution.
+    :param tuple k_size: Kernel size which is used for all three dimensions.
+    :param float dropout: Adds a dropout layer if value is greater than 0.
+    :param None/tuple max_pooling: Specifies if a MaxPooling layer should be added. e.g. (1,1,2) for 3D.
+    :param str activation: Type of activation function that should be used. E.g. 'linear', 'relu', 'elu', 'selu'.
+    :param None/str kernel_reg: if L2 regularization with 1e-4 should be employed. 'l2' to enable the regularization.
+    :return: x: Resulting output tensor (model).
+    """
+    from keras.layers import Dropout
+    from keras.layers.convolutional import Conv2D
+    from keras.layers.pooling import MaxPooling2D
 
-    # Define shared Dense Layers
-    shared_dense_1 = Dense(32, name='Shared_1_Dense', activation=act, kernel_initializer=init, kernel_regularizer=regu)
-    shared_dense_2 = Dense(8, name='Shared_2_Dense', activation=act, kernel_initializer=init, kernel_regularizer=regu)
+    x = [Conv2D(n_filters, kernel_size = k_size, padding=padding,
+                kernel_initializer=init, activation=activ, kernel_regularizer=kernel_reg)]
 
-    # Dense Layers
-    dense_1_1 = shared_dense_1(flat_1)
-    dense_1_2 = shared_dense_1(flat_2)
+    if max_pooling is not None: x.append(MaxPooling2D(strides=max_pooling, padding=padding))
+    if dropout > 0.0: x.append(Dropout(dropout))
 
-    dense_2_1 = shared_dense_2(dense_1_1)
-    dense_2_2 = shared_dense_2(dense_1_2)
-
-    # Merge Dense Layers
-    merge_1_2 = Concatenate(name='Flat_1_and_2')([dense_2_1, dense_2_2])
-
-    # Output
-    output = Dense(2, name='Output', activation='softmax', kernel_initializer=init)(merge_1_2)
-
-    return Model(inputs=[visible_1, visible_2], outputs=[output])
+    return x
 
 def create_shared_dcnn_network_UV():
     from keras.utils import plot_model
