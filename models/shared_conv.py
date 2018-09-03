@@ -1,58 +1,43 @@
+from keras.models import Model
+from keras.layers import Input
+from keras.layers import Dense
+from keras.layers import Flatten, Dropout, BatchNormalization, Activation
+from keras.layers.convolutional import Conv2D
+from keras.layers.pooling import MaxPooling2D, AveragePooling2D, GlobalAveragePooling2D
+from keras.layers.merge import Concatenate, Add
+from keras import regularizers
+from keras import layers
+from keras import backend as K
+
 def create_shared_dcnn_network_U():
-    from keras.models import Model
-    from keras.layers import Input
-    from keras.layers import Dense
-    from keras.layers import Flatten, Dropout
-    from keras.layers.convolutional import Conv2D
-    from keras.layers.pooling import MaxPooling2D
-    from keras.layers.merge import Concatenate, Add
-    from keras import regularizers
+    kwargs = {'padding': 'same',
+              'dropout': 0.0,
+              'BN': False,
+              'kernel_initializer': 'glorot_uniform',
+              'kernel_regularizer': regularizers.l2(1.e-3)}
 
-    regu = regularizers.l2(1.e-3)
-    init = "glorot_uniform"
-    act = "relu"
-    padding = "same"
-    drop = 0.0
-
-    # Input layers
     input = []
     input.append(Input(shape=(350, 38, 1), name='Wire_1'))
     input.append(Input(shape=(350, 38, 1), name='Wire_2'))
 
     layers = []
-    # layers.append(Conv_block(16, k_size=(5, 3), padding=padding, init=init, dropout=drop, max_pooling=None , activ=act, kernel_reg=regu))
-    # layers.append(Conv_block(32, k_size=(5, 3), padding=padding, init=init, dropout=drop, max_pooling=(4,2), activ=act, kernel_reg=regu))
-    # layers.append(Conv_block(64, k_size=(3, 3), padding=padding, init=init, dropout=drop, max_pooling=None, activ=act, kernel_reg=regu))
-    # layers.append(Conv_block(128, k_size=(3, 3), padding=padding, init=init, dropout=drop, max_pooling=(4, 2), activ=act, kernel_reg=regu))
+    layers.append(Conv_block(16, filter_size=(5, 3), max_pooling=None, **kwargs))
+    layers.append(Conv_block(16, filter_size=(5, 3), max_pooling=(4, 2), **kwargs))
+    layers.append(Conv_block(32, filter_size=(5, 3), max_pooling=None, **kwargs))
+    layers.append(Conv_block(32, filter_size=(5, 3), max_pooling=(4, 2), **kwargs))
+    layers.append(Conv_block(64, filter_size=(3, 3), max_pooling=None, **kwargs))
+    layers.append(Conv_block(64, filter_size=(3, 3), max_pooling=(2, 2), **kwargs))
+    layers.append(Conv_block(128, filter_size=(3, 3), max_pooling=None, **kwargs))
+    layers.append(Conv_block(128, filter_size=(3, 3), max_pooling=(2, 2), **kwargs))
+    layers.append(Conv_block(256, filter_size=(3, 3), max_pooling=None, **kwargs))
+    #TEST
+    layers.append(Conv_block(256, filter_size=(3, 3), max_pooling=None, **kwargs))
+    layers.append([GlobalAveragePooling2D()])
+    #TEST
     # layers.append(Conv_block(256, k_size=(3, 3), padding=padding, init=init, dropout=drop, max_pooling=(2, 2), activ=act, kernel_reg=regu))
-    # # layers.append(Conv_block(256, k_size=(3, 3), padding=padding, init=init, dropout=drop, max_pooling=(2, 2), activ=act, kernel_reg=regu))
-
-    layers.append(Conv_block(16, k_size=(5, 3), padding=padding, init=init, dropout=drop, max_pooling=None, activ=act, kernel_reg=regu))
-    layers.append(Conv_block(16, k_size=(5, 3), padding=padding, init=init, dropout=drop, max_pooling=(4, 2), activ=act,
-                             kernel_reg=regu))
-    layers.append(Conv_block(32, k_size=(5, 3), padding=padding, init=init, dropout=drop, max_pooling=None, activ=act,
-                             kernel_reg=regu))
-    layers.append(Conv_block(32, k_size=(5, 3), padding=padding, init=init, dropout=drop, max_pooling=(4, 2), activ=act, kernel_reg=regu))
-    layers.append(Conv_block(64, k_size=(3, 3), padding=padding, init=init, dropout=drop, max_pooling=None, activ=act,
-                             kernel_reg=regu))
-    layers.append(Conv_block(64, k_size=(3, 3), padding=padding, init=init, dropout=drop, max_pooling=(2, 2), activ=act,
-                             kernel_reg=regu))
-    layers.append(
-        Conv_block(128, k_size=(3, 3), padding=padding, init=init, dropout=drop, max_pooling=None, activ=act,
-                   kernel_reg=regu))
-    layers.append(
-        Conv_block(128, k_size=(3, 3), padding=padding, init=init, dropout=drop, max_pooling=(2, 2), activ=act,
-                   kernel_reg=regu))
-    layers.append(
-        Conv_block(256, k_size=(3, 3), padding=padding, init=init, dropout=drop, max_pooling=None, activ=act,
-                   kernel_reg=regu))
-    layers.append(
-        Conv_block(256, k_size=(3, 3), padding=padding, init=init, dropout=drop, max_pooling=(2, 2), activ=act,
-                   kernel_reg=regu))
-
-    layers.append([Flatten()])
-    layers.append([Dense(32, activation=act, kernel_initializer=init, kernel_regularizer=regu)])
-    layers.append([Dense(8, activation=act, kernel_initializer=init, kernel_regularizer=regu)])
+    # layers.append([Flatten()])
+    # layers.append([Dense(32, activation=act, kernel_initializer=init, kernel_regularizer=regu)])
+    # layers.append([Dense(8, activation=act, kernel_initializer=init, kernel_regularizer=regu)])
     #TODO Flatten list of layers
 
     paths = []
@@ -62,10 +47,122 @@ def create_shared_dcnn_network_U():
         paths.append(x_i)
 
     merge = Concatenate(name='Flat_1_and_2')(paths)
-    output = Dense(2, name='Output', activation='softmax', kernel_initializer=init)(merge)
+    output = Dense(2, name='Output', activation='softmax', kernel_initializer=kwargs['kernel_initializer'])(merge)
     return Model(inputs=input, outputs=output)
 
-def Conv_block(n_filters, k_size=(3,3), padding='same', init='glorot_uniform', dropout=0.0, max_pooling=None, activ='relu', kernel_reg = None):
+def create_shared_inceptionV3_network_U():
+    input = []
+    input.append(Input(shape=(350, 38, 1), name='Wire_1'))
+    input.append(Input(shape=(350, 38, 1), name='Wire_2'))
+
+    layers = []
+    layers.append(Conv_block(32, (3, 3)))#, strides=(2, 2), padding='valid'))
+    layers.append(Conv_block(32, (3, 3)))#, padding='valid'))
+    layers.append([MaxPooling2D((4, 2))])  # , strides=(2, 2))]) #TODO Test
+    layers.append(Conv_block(64, (3, 3)))
+   # layers.append([MaxPooling2D((3, 3))])#, strides=(2, 2))]) #TODO Test auskommentiert
+
+    layers.append(InceptionV1_block(num_filters=(64, (64, 96), (48, 64), 32)))
+    layers.append(InceptionV1_block(num_filters=(64, (64, 96), (48, 64), 32)))
+    layers.append(InceptionV1_block(num_filters=(64, (64, 96), (48, 64), 32)))
+    layers.append(InceptionV1_block(num_filters=(64, (64, 96), (48, 64), 32)))
+
+    layers.append([GlobalAveragePooling2D()])
+
+    paths = []
+    subpaths = []
+    parallelFlag = False
+    for x_i in input:
+        for layer in sum(layers, []):
+            if type(layer) == list:
+                parallelFlag = True
+                x_i_temp = x_i
+                for sublayer in layer:
+                    x_i_temp = sublayer(x_i_temp)
+                subpaths.append(x_i_temp)
+            else:
+                if parallelFlag == True:
+                    x_i = layer(subpaths)
+                    parallelFlag = False
+                    subpaths = []
+                else:
+                    x_i = layer(x_i)
+        paths.append(x_i)
+
+    merge = Concatenate(name='Flat_1_and_2')(paths)
+    output = Dense(2, name='Output', activation='softmax', kernel_initializer="glorot_uniform")(merge)
+
+    return Model(inputs=input, outputs=output)
+
+def Conv_block(num_filters, filter_size=(3,3), max_pooling=None, padding='same', dropout=0.0, BN=False, **kwargs):
+    """
+    2D Convolutional block followed by optional BatchNormalization, Activation (not optional), MaxPooling or Dropout.
+    C-(BN)-A-(MP)-(D)
+    :param int n_filters: Number of filters used for the convolution.
+    :param tuple k_size: Kernel size which is used for all three dimensions.
+    :param None/tuple max_pooling: Specifies if a MaxPooling layer should be added. e.g. (1,1,2) for 3D.
+    :param string padding: Specifies padding scheme for Conv2D and for MaxPooling. valid/same.
+    :param float dropout: Adds a dropout layer if value is greater than 0.
+    :param bool BN: Specifies whether to use BatchNormalization or not.
+    :param **kwargs: Additional arguments for calling the Conv2D function.
+    :return: x: List of resulting output layers.
+    """
+
+    x = []
+    if BN == False:
+        x.append(Conv2D(num_filters, kernel_size=filter_size, padding=padding, **kwargs))
+    else: #TODO CHECK IF BATCHNORMALIZATION CAUSES BAD VALIDATION PERFORMANCE
+        channel_axis = -1 if K.image_data_format() == "channels_last" else 1
+        x.append(Conv2D(num_filters, kernel_size=filter_size, padding=padding, **kwargs))
+        x.append(BatchNormalization(axis=channel_axis, scale=False))
+        x.append(Activation('relu'))
+
+    if max_pooling is not None:
+        x.append(MaxPooling2D(strides=max_pooling, padding=padding))
+    if dropout > 0.0:
+        x.append(Dropout(dropout))
+    return x
+
+def InceptionV1_block(num_filters=(64, (64, 96), (48, 64), 32)):
+    """
+    2D Inception V1 block. Each Conv2D Element consists of Conv2D, BatchNorm, Activation.
+    Inception towers are: 1x1, 1x1 + 3x3, 1x1 + 5x5, AverPool + 1x1
+    :param tuple num_filters: Kernel sizes which are used for the tower. Ordering like above.
+    :return: x: List of resulting output layers. Concat layer is parsed as last tower.
+    """
+
+    kwargs = {'max_pooling': None,
+              'padding': 'same',
+              'dropout': 0.0,
+              'BN': True,
+              'strides': 1,
+              'use_bias': False}
+
+    branch1x1 = []
+    branch1x1.append(Conv_block(num_filters[0], (1, 1), **kwargs))
+    branch1x1 = sum(branch1x1, [])
+
+    branch3x3 = []
+    branch3x3.append(Conv_block(num_filters[1][0], (1, 1), **kwargs))
+    branch3x3.append(Conv_block(num_filters[1][1], (3, 3), **kwargs))
+    branch3x3 = sum(branch3x3, [])
+
+    branch5x5 = []
+    branch5x5.append(Conv_block(num_filters[2][0], (1, 1), **kwargs))
+    branch5x5.append(Conv_block(num_filters[2][1], (5, 5), **kwargs))
+    branch5x5 = sum(branch5x5, [])
+
+    branch_pool = []
+    branch_pool.append([AveragePooling2D((3, 3), strides=(1, 1), padding='same')])
+    branch_pool.append(Conv_block(num_filters[3], (1, 1), **kwargs))
+    branch_pool = sum(branch_pool, [])
+
+    channel_axis = -1 if K.image_data_format() == "channels_last" else 1
+    concat = Concatenate(axis=channel_axis)
+
+    return [branch1x1, branch3x3, branch5x5, branch_pool, concat]
+
+def InceptionV3_block(x):
     """
     2D/3D Convolutional block followed by Activation with optional MaxPooling or Dropout.
     C-(MP)-(D)
@@ -77,15 +174,21 @@ def Conv_block(n_filters, k_size=(3,3), padding='same', init='glorot_uniform', d
     :param None/str kernel_reg: if L2 regularization with 1e-4 should be employed. 'l2' to enable the regularization.
     :return: x: Resulting output tensor (model).
     """
-    from keras.layers import Dropout
-    from keras.layers.convolutional import Conv2D
-    from keras.layers.pooling import MaxPooling2D
+    # mixed 0, 1, 2: 35 x 35 x 256
+    branch1x1 = conv2d_bn(x, 64, 1, 1)
 
-    x = [Conv2D(n_filters, kernel_size = k_size, padding=padding,
-                kernel_initializer=init, activation=activ, kernel_regularizer=kernel_reg)]
+    branch5x5 = conv2d_bn(x, 48, 1, 1)
+    branch5x5 = conv2d_bn(branch5x5, 64, 3, 3)
+    branch5x5 = conv2d_bn(branch5x5, 64, 3, 3)
 
-    if max_pooling is not None: x.append(MaxPooling2D(strides=max_pooling, padding=padding))
-    if dropout > 0.0: x.append(Dropout(dropout))
+    branch3x3dbl = conv2d_bn(x, 48, 1, 1)
+    branch3x3dbl = conv2d_bn(branch3x3dbl, 64, 3, 3)
+
+    branch_pool = AveragePooling2D((3, 3), strides=(1, 1), padding='same')(x)
+    branch_pool = conv2d_bn(branch_pool, 64, 1, 1)
+
+    channel_axis = -1 if K.image_data_format() == "channels_last" else 1
+    x = layers.concatenate( [branch1x1, branch5x5, branch3x3dbl, branch_pool], axis=channel_axis)
 
     return x
 

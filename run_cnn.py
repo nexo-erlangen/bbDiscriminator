@@ -14,6 +14,8 @@ from plot_scripts.plot_traininghistory import *
 def main(args):
     frac_train = {'mixedUniMC': 0.95}
     frac_val   = {'mixedUniMC': 0.05}
+    # frac_train = {'mixedUniMC': 0.50}
+    # frac_val = {'mixedUniMC': 0.05}
 
     splitted_files = splitFiles(args, mode=args.mode, frac_train=frac_train, frac_val=frac_val)
 
@@ -53,18 +55,16 @@ def executeCNN(args, files, var_targets, nn_arch, batchsize, epoch, mode, n_gpu=
     print '\nEpoch Interval:\t', epoch[0], ' - ', epoch[1], '\n'
 
     if epoch[0] == 0:
-        if nn_arch is 'DCNN':
+        if nn_arch == 'DCNN':
             model = create_shared_dcnn_network_U()
-        elif nn_arch is 'ResNet':
+        elif nn_arch == 'ResNet':
             raise ValueError('Currently, this is not implemented')
             # model = create_vgg_like_model(n_bins, batchsize, nb_classes=class_type[0], dropout=0.1,
             #                               n_filters=(64, 64, 64, 64, 64, 64, 128, 128, 128, 128),
             #                               swap_4d_channels=swap_4d_channels)
-        elif nn_arch is 'Inception':
-            # model = create_convolutional_lstm(n_bins, batchsize, nb_classes=class_type[0], dropout=0.1,
-            #                                   n_filters=(16, 16, 32, 32, 32, 32, 64, 64))
-            raise ValueError('Currently, this is not implemented')
-        elif nn_arch is 'Conv_LSTM':
+        elif nn_arch == 'Inception':
+            model = create_shared_inceptionV3_network_U()
+        elif nn_arch == 'Conv_LSTM':
             raise ValueError('Currently, this is not implemented')
             # model = create_convolutional_lstm(n_bins, batchsize, nb_classes=class_type[0], dropout=0.1,
             #                                   n_filters=(16, 16, 32, 32, 32, 32, 64, 64))
@@ -86,6 +86,8 @@ def executeCNN(args, files, var_targets, nn_arch, batchsize, epoch, mode, n_gpu=
         except OSError:
             save_plot_model_script(folderOUT=args.folderOUT)
             print 'could not produce plot_model.png ---- run generate_model_plot on CPU'
+
+        # exit()
 
         adam = ks.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0)  # epsilon=1 for deep networks
         optimizer = adam  # Choose optimizer, only used if epoch == 0
@@ -281,8 +283,6 @@ def fit_model(args, model, files, batchsize, var_targets, epoch, shuffle, n_even
                                           nb_steps=validation_steps, log_dir=(args.folderRUNS + 'tb_logs/%s'%(args.folderOUT[args.folderOUT.rindex('/', 0, len(args.folderOUT) - 1) + 1 : -1])),
                                           histogram_freq=1, batch_size=batchsize, write_graph=True, write_grads=True, write_images=True)
         callbacks.append(tensorlogger)
-
-    # K.set_value(model.optimizer.lr, 0.00001)
 
     print 'Set learning rate to ' + str(K.get_value(model.optimizer.lr))
 
