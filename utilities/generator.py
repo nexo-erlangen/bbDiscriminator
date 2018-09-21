@@ -9,7 +9,7 @@ import random
 import cPickle as pickle
 
 #------------- Function used for supplying images to the GPU -------------#
-def generate_batches_from_files(files, batchsize, class_type=None, f_size=None, yield_mc_info=0):
+def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f_size=None, yield_mc_info=0):
     """
     Generator that returns batches of images ('xs') and labels ('ys') from a h5 file.
     :param string files: Full filepath of the input h5 file, e.g. '[/path/to/file/file.hdf5]'.
@@ -33,9 +33,14 @@ def generate_batches_from_files(files, batchsize, class_type=None, f_size=None, 
     elif isinstance(files, dict): files = reduce(lambda x, y: x + y, files.values())
     else: raise TypeError('passed variable need to be list/np.array/str/dict[dict]')
 
+    if wires == 'U':    wireindex = [0, 2]
+    elif wires == 'V':  wireindex = [1, 3]
+    elif wires in ['UV', 'U+V']: pass #wireindex = [0, 1, 2, 3]
+    else: raise ValueError('passed wire specifier need to be U/V/UV')
+
     eventInfo = {}
     while 1:
-        random.shuffle(files)
+        # random.shuffle(files) #TODO no shuffling right now
         for filename in files:
             f = h5py.File(str(filename), "r")
             if f_size is None: f_size = getNumEvents(filename)
@@ -43,21 +48,25 @@ def generate_batches_from_files(files, batchsize, class_type=None, f_size=None, 
                 #     'is not equal to the f_size of the true .h5 file. Should be ok if you use the tb_callback.')
 
             lst = np.arange(0, f_size, batchsize)
-            random.shuffle(lst)
+            # random.shuffle(lst) #TODO no shuffling right now
 
             # filter the labels we don't want for now
             for key in f.keys():
                 if key in ['wfs']: continue
                 eventInfo[key] = np.asarray(f[key])
             ys = encode_targets(eventInfo, f_size, class_type)
+            ys = ks.utils.to_categorical(ys, 2) #convert to one-hot vectors
 
             for i in lst:
                 if not yield_mc_info == 2:
-                    xs_i = f['wfs'][i: i + batchsize, [0, 2]]  # Select batch and select U-wires only
-                    # xs_i = f['wfs'][i: i + batchsize]  # Select batch and select U+V-wires
+                    if wires in ['U', 'V']:      xs_i = f['wfs'][i: i + batchsize, wireindex]
+                    elif wires in ['UV', 'U+V']: xs_i = f['wfs'][i: i + batchsize]      #TODO Optimize via wireindex
+                    else: raise ValueError('passed wire specifier need to be U/V/UV')
                     xs_i = np.swapaxes(xs_i, 0, 1)
                     xs_i = np.swapaxes(xs_i, 2, 3)
-                    ys_i = ks.utils.to_categorical(ys[ i : i + batchsize ], 2)
+                    ys_i = ys[ i : i + batchsize ]
+                    # xs_i[[0, 1]] = xs_i[[1, 0]]
+                    # xs_i[[2, 3]] = xs_i[[3, 2]]
 
                 if   yield_mc_info == 0:    yield (list(xs_i), ys_i)
                 elif yield_mc_info == 1:    yield (list(xs_i), ys_i) + ({ key: eventInfo[key][i: i + batchsize] for key in eventInfo.keys() },)
@@ -112,40 +121,38 @@ def read_EventInfo_from_files(files, maxNumEvents=0):
 
 def predict_events(model, generator):
     X, Y_TRUE, EVENT_INFO = generator.next()
-    Y_PRED = np.asarray(model.predict(X, 10))
-    print Y_TRUE
-    print '====='
-    print Y_PRED
-    exit()
-    return (Y_PRED, Y_TRUE, EVENT_INFO)
+    EVENT_INFO['DNNPred'] = np.asarray(model.predict(X, 50))
+    EVENT_INFO['DNNTrue'] = np.asarray(Y_TRUE)
+    return EVENT_INFO
 
 def get_events(args, files, model, fOUT):
-    print 'entering get events'
     try:
         if args.new: raise IOError
-        spec = pickle.load(open(fOUT, "rb"))
-        if args.events > len(spec['Y_TRUE']): raise IOError
+        EVENT_INFO = pickle.load(open(fOUT, "rb"))
+        if args.events > EVENT_INFO.values()[0].shape[0]: raise IOError
     except IOError:
-        if model == None: print 'model not found and not events file found' ; raise SystemError
-        events_per_batch = 20 #50
-        if args.events % events_per_batch != 0: raise ValueError('choose event number in multiples of %f events'%(events_per_batch))
-        iterations = round_down(args.events, events_per_batch) / events_per_batch
-        gen = generate_batches_from_files(files, events_per_batch, class_type=args.var_targets, f_size=None, yield_mc_info=1)
+        events_per_batch = 50
+        if model == None:
+            raise SystemError('model not found and not events file found')
+        if args.events % events_per_batch != 0:
+            raise ValueError('choose event number in multiples of %f events'%(events_per_batch))
 
-        Y_PRED, Y_TRUE = [], []
+        iterations = round_down(args.events, events_per_batch) / events_per_batch
+        gen = generate_batches_from_files(files, events_per_batch, wires=args.wires, class_type=args.var_targets, f_size=None, yield_mc_info=1)
+
         for i in xrange(iterations):
             print i*events_per_batch, ' of ', iterations*events_per_batch
-            Y_PRED_temp, Y_TRUE_temp, EVENT_INFO_temp = predict_events(model, gen)
-            Y_PRED.extend(Y_PRED_temp)
-            Y_TRUE.extend(Y_TRUE_temp)
+            EVENT_INFO_temp = predict_events(model, gen)
             if i == 0: EVENT_INFO = EVENT_INFO_temp
             else:
                 for key in EVENT_INFO:
                     EVENT_INFO[key] = np.concatenate((EVENT_INFO[key], EVENT_INFO_temp[key]))
-
-        spec = {'Y_PRED': np.asarray(Y_PRED), 'Y_TRUE': np.asarray(Y_TRUE), 'EVENT_INFO': EVENT_INFO}
-        pickle.dump(spec, open(fOUT, "wb"))
-    return spec
+        # For now, only class probabilities. For final class predictions, do y_classes = y_prob.argmax(axis=-1)
+        EVENT_INFO['DNNPredClass'] = EVENT_INFO['DNNPred'].argmax(axis=-1)
+        EVENT_INFO['DNNTrueClass'] = EVENT_INFO['DNNTrue'].argmax(axis=-1)
+        EVENT_INFO['DNNPredTrueClass'] = EVENT_INFO['DNNPred'][:, 1]
+        pickle.dump(EVENT_INFO, open(fOUT, "wb"))
+    return EVENT_INFO
 
 def getNumEvents(files):
     if isinstance(files, list): pass

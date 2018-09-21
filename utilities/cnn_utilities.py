@@ -9,7 +9,6 @@ from keras import backend as K
 
 from input_utilities import *
 from generator import *
-from cnn_utilities import *
 from plot_scripts import plot_input_plots
 from plot_scripts import plot_traininghistory
 from plot_scripts import plot_validation

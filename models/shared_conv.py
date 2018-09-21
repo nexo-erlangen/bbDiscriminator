@@ -8,13 +8,14 @@ from keras.layers.merge import Concatenate, Add
 from keras import regularizers
 from keras import layers
 from keras import backend as K
+import copy
 
-def create_shared_dcnn_network_U():
+def create_shared_dcnn_network_2():
     kwargs = {'padding': 'same',
               'dropout': 0.0,
               'BN': False,
               'kernel_initializer': 'glorot_uniform',
-              'kernel_regularizer': regularizers.l2(1.e-3)}
+              'kernel_regularizer': regularizers.l2(1.e-2)}
 
     input = []
     input.append(Input(shape=(350, 38, 1), name='Wire_1'))
@@ -38,61 +39,170 @@ def create_shared_dcnn_network_U():
     # layers.append([Flatten()])
     # layers.append([Dense(32, activation=act, kernel_initializer=init, kernel_regularizer=regu)])
     # layers.append([Dense(8, activation=act, kernel_initializer=init, kernel_regularizer=regu)])
-    #TODO Flatten list of layers
 
-    paths = []
-    for x_i in input:
-        for layer in sum(layers, []):
-            x_i = layer(x_i)
-        paths.append(x_i)
+    paths = assemble_network(input, layers)
 
     merge = Concatenate(name='Flat_1_and_2')(paths)
     output = Dense(2, name='Output', activation='softmax', kernel_initializer=kwargs['kernel_initializer'])(merge)
     return Model(inputs=input, outputs=output)
 
-def create_shared_inceptionV3_network_U():
+def create_shared_dcnn_network_4():
+
+    kwargs = {'padding': 'same',
+              'dropout': 0.0,
+              'BN': False,
+              'kernel_initializer': 'glorot_uniform',
+              'kernel_regularizer': regularizers.l2(1.e-2)}
+
+    inputU = []
+    inputU.append(Input(shape=(350, 38, 1), name='U-Wire_1'))
+    inputU.append(Input(shape=(350, 38, 1), name='U-Wire_2'))
+    inputV = []
+    inputV.append(Input(shape=(350, 38, 1), name='V-Wire_1'))
+    inputV.append(Input(shape=(350, 38, 1), name='V-Wire_2'))
+
+    layersU = []
+    layersV = []
+    for layers in [layersU, layersV]: # Use same architecture for U and V wires. Can be changed
+        layers.append(Conv_block(16, filter_size=(5, 3), max_pooling=None, **kwargs))
+        layers.append(Conv_block(16, filter_size=(5, 3), max_pooling=(4, 2), **kwargs))
+        layers.append(Conv_block(32, filter_size=(5, 3), max_pooling=None, **kwargs))
+        layers.append(Conv_block(32, filter_size=(5, 3), max_pooling=(4, 2), **kwargs))
+        layers.append(Conv_block(64, filter_size=(3, 3), max_pooling=None, **kwargs))
+        layers.append(Conv_block(64, filter_size=(3, 3), max_pooling=(2, 2), **kwargs))
+        layers.append(Conv_block(128, filter_size=(3, 3), max_pooling=None, **kwargs))
+        layers.append(Conv_block(128, filter_size=(3, 3), max_pooling=(2, 2), **kwargs))
+        layers.append(Conv_block(256, filter_size=(3, 3), max_pooling=None, **kwargs))
+        layers.append(Conv_block(256, filter_size=(3, 3), max_pooling=None, **kwargs))
+        layers.append([GlobalAveragePooling2D()])
+
+    pathsU = assemble_network(inputU, layersU)
+    pathsV = assemble_network(inputV, layersV)
+
+    inputUV = []
+    inputUV.append(Concatenate(name='TPC_1')([pathsU[0], pathsV[0]]))
+    inputUV.append(Concatenate(name='TPC_2')([pathsU[1], pathsV[1]]))
+
+    layersUV = []
+    layersUV.append([Dense(32, activation='relu', kernel_regularizer=kwargs['kernel_regularizer'])])
+    layersUV.append([Dense(16, activation='relu', kernel_regularizer=kwargs['kernel_regularizer'])])
+
+    pathsUV = assemble_network(inputUV, layersUV)
+
+    merge = Concatenate(name='Flat_1_and_2')(pathsUV)
+    output = Dense(2, name='Output', activation='softmax', kernel_initializer=kwargs['kernel_initializer'])(merge)
+
+    inputUV = []
+    inputUV.append(inputU[0])
+    inputUV.append(inputV[0])
+    inputUV.append(inputU[1])
+    inputUV.append(inputV[1])
+
+    return Model(inputs=inputUV, outputs=output)
+
+def create_shared_inception_network_2():
+    kwargs = {'padding': 'same',
+              'dropout': 0.0,
+              'BN': True,
+              'kernel_initializer': 'glorot_uniform'}
+
     input = []
     input.append(Input(shape=(350, 38, 1), name='Wire_1'))
     input.append(Input(shape=(350, 38, 1), name='Wire_2'))
 
     layers = []
-    layers.append(Conv_block(32, (3, 3)))#, strides=(2, 2), padding='valid'))
-    layers.append(Conv_block(32, (3, 3)))#, padding='valid'))
-    layers.append([MaxPooling2D((4, 2))])  # , strides=(2, 2))]) #TODO Test
-    layers.append(Conv_block(64, (3, 3)))
-   # layers.append([MaxPooling2D((3, 3))])#, strides=(2, 2))]) #TODO Test auskommentiert
+    layers.append(Conv_block(32, filter_size=(3, 3), **kwargs))
+    layers.append(Conv_block(32, filter_size=(3, 3), **kwargs))
+    layers.append([MaxPooling2D((4, 2))])
+    layers.append(Conv_block(64, filter_size=(3, 3), **kwargs))
 
-    layers.append(InceptionV1_block(num_filters=(64, (64, 96), (48, 64), 32)))
-    layers.append(InceptionV1_block(num_filters=(64, (64, 96), (48, 64), 32)))
-    layers.append(InceptionV1_block(num_filters=(64, (64, 96), (48, 64), 32)))
-    layers.append(InceptionV1_block(num_filters=(64, (64, 96), (48, 64), 32)))
+    num_filters = (64, (96, 128), (16, 32), 32) #TODO Real values from IncV1 Paper?
+    num_filters_deep = (96, (96, 192), (64, 96), 96)
+    layers.append(InceptionV1_block(num_filters=num_filters))
+    layers.append(InceptionV1_block(num_filters=num_filters))
+    layers.append([MaxPooling2D((2, 2))]) # TODO Test Inception module with stride=2 instead of max pooling
+    layers.append(InceptionV1_block(num_filters=num_filters))
+    layers.append(InceptionV1_block(num_filters=num_filters))
+    layers.append([MaxPooling2D((2, 1))])
+    layers.append(InceptionV1_block(num_filters=num_filters))
+    layers.append(InceptionV1_block(num_filters=num_filters))
+    # layers.append([MaxPooling2D((2, 1))])
+    # layers.append(InceptionV1_block(num_filters=num_filters))
+    # layers.append(InceptionV1_block(num_filters=num_filters))
+    # layers.append(InceptionV1_block(num_filters=num_filters_deep))
+    # layers.append(InceptionV1_block(num_filters=num_filters_deep))
 
     layers.append([GlobalAveragePooling2D()])
 
-    paths = []
-    subpaths = []
-    parallelFlag = False
-    for x_i in input:
-        for layer in sum(layers, []):
-            if type(layer) == list:
-                parallelFlag = True
-                x_i_temp = x_i
-                for sublayer in layer:
-                    x_i_temp = sublayer(x_i_temp)
-                subpaths.append(x_i_temp)
-            else:
-                if parallelFlag == True:
-                    x_i = layer(subpaths)
-                    parallelFlag = False
-                    subpaths = []
-                else:
-                    x_i = layer(x_i)
-        paths.append(x_i)
+    paths = assemble_network(input, layers)
 
     merge = Concatenate(name='Flat_1_and_2')(paths)
     output = Dense(2, name='Output', activation='softmax', kernel_initializer="glorot_uniform")(merge)
 
     return Model(inputs=input, outputs=output)
+
+def create_shared_inception_network_4():
+    kwargs = {'padding': 'same',
+              'dropout': 0.0,
+              'BN': True,
+              'kernel_initializer': 'glorot_uniform'}
+
+    inputU = []
+    inputU.append(Input(shape=(350, 38, 1), name='U-Wire_1'))
+    inputU.append(Input(shape=(350, 38, 1), name='U-Wire_2'))
+    inputV = []
+    inputV.append(Input(shape=(350, 38, 1), name='V-Wire_1'))
+    inputV.append(Input(shape=(350, 38, 1), name='V-Wire_2'))
+
+    layersU = []
+    layersV = []
+    for layers in [layersU, layersV]:  # Use same architecture for U and V wires. Can be changed
+        layers.append(Conv_block(32, filter_size=(3, 3), **kwargs))
+        layers.append(Conv_block(32, filter_size=(3, 3), **kwargs))
+        layers.append([MaxPooling2D((4, 2))])
+        layers.append(Conv_block(64, filter_size=(3, 3), **kwargs))
+
+        num_filters = (64, (96, 128), (16, 32), 32) #TODO Real values from IncV1 Paper?
+        num_filters_deep = (96, (96, 192), (64, 96), 96)
+        layers.append(InceptionV1_block(num_filters=num_filters))
+        layers.append(InceptionV1_block(num_filters=num_filters))
+        layers.append([MaxPooling2D((2, 2))]) # TODO Test Inception module with stride=2 instead of max pooling
+        layers.append(InceptionV1_block(num_filters=num_filters))
+        layers.append(InceptionV1_block(num_filters=num_filters))
+        layers.append([MaxPooling2D((2, 1))])
+        layers.append(InceptionV1_block(num_filters=num_filters))
+        layers.append(InceptionV1_block(num_filters=num_filters))
+        # layers.append([MaxPooling2D((2, 1))])
+        # layers.append(InceptionV1_block(num_filters=num_filters))
+        # layers.append(InceptionV1_block(num_filters=num_filters))
+        # layers.append(InceptionV1_block(num_filters=num_filters_deep))
+        # layers.append(InceptionV1_block(num_filters=num_filters_deep))
+        layers.append([GlobalAveragePooling2D()])
+
+
+    pathsU = assemble_network(inputU, layersU)
+    pathsV = assemble_network(inputV, layersV)
+
+    inputUV = []
+    inputUV.append(Concatenate(name='TPC_1')([pathsU[0], pathsV[0]]))
+    inputUV.append(Concatenate(name='TPC_2')([pathsU[1], pathsV[1]]))
+
+    layersUV = []
+    layersUV.append([Dense(64, activation='relu')])
+    layersUV.append([Dense(16, activation='relu')])
+
+    pathsUV = assemble_network(inputUV, layersUV)
+
+    merge = Concatenate(name='Flat_1_and_2')(pathsUV)
+    output = Dense(2, name='Output', activation='softmax', kernel_initializer="glorot_uniform")(merge)
+
+    inputUV = []
+    inputUV.append(inputU[0])
+    inputUV.append(inputV[0])
+    inputUV.append(inputU[1])
+    inputUV.append(inputV[1])
+
+    return Model(inputs=inputUV, outputs=output)
 
 def Conv_block(num_filters, filter_size=(3,3), max_pooling=None, padding='same', dropout=0.0, BN=False, **kwargs):
     """
@@ -110,11 +220,11 @@ def Conv_block(num_filters, filter_size=(3,3), max_pooling=None, padding='same',
 
     x = []
     if BN == False:
-        x.append(Conv2D(num_filters, kernel_size=filter_size, padding=padding, **kwargs))
-    else: #TODO CHECK IF BATCHNORMALIZATION CAUSES BAD VALIDATION PERFORMANCE
+        x.append(Conv2D(num_filters, kernel_size=filter_size, padding=padding, activation='relu', **kwargs))
+    else:
         channel_axis = -1 if K.image_data_format() == "channels_last" else 1
         x.append(Conv2D(num_filters, kernel_size=filter_size, padding=padding, **kwargs))
-        x.append(BatchNormalization(axis=channel_axis, scale=False))
+        x.append(BatchNormalization(axis=channel_axis, momentum=0.5, scale=False)) #momentum=0.99 #TODO use 0.5 again
         x.append(Activation('relu'))
 
     if max_pooling is not None:
@@ -131,6 +241,7 @@ def InceptionV1_block(num_filters=(64, (64, 96), (48, 64), 32)):
     :return: x: List of resulting output layers. Concat layer is parsed as last tower.
     """
 
+    channel_axis = -1 if K.image_data_format() == "channels_last" else 1
     kwargs = {'max_pooling': None,
               'padding': 'same',
               'dropout': 0.0,
@@ -149,20 +260,27 @@ def InceptionV1_block(num_filters=(64, (64, 96), (48, 64), 32)):
 
     branch5x5 = []
     branch5x5.append(Conv_block(num_filters[2][0], (1, 1), **kwargs))
-    branch5x5.append(Conv_block(num_filters[2][1], (5, 5), **kwargs))
+    branch5x5.append(Conv_block(num_filters[2][1], (3, 3), **kwargs))
+    branch5x5.append(Conv_block(num_filters[2][1], (3, 3), **kwargs))
     branch5x5 = sum(branch5x5, [])
+
+    # branch7x7 = []
+    # branch7x7.append(Conv_block(num_filters[2][0], (1, 1), **kwargs))
+    # branch7x7.append(Conv_block(num_filters[2][1], (1, 7), **kwargs))
+    # branch7x7.append(Conv_block(num_filters[2][1], (7, 1), **kwargs))
+    # branch7x7 = sum(branch7x7, [])
 
     branch_pool = []
     branch_pool.append([AveragePooling2D((3, 3), strides=(1, 1), padding='same')])
     branch_pool.append(Conv_block(num_filters[3], (1, 1), **kwargs))
     branch_pool = sum(branch_pool, [])
 
-    channel_axis = -1 if K.image_data_format() == "channels_last" else 1
     concat = Concatenate(axis=channel_axis)
 
     return [branch1x1, branch3x3, branch5x5, branch_pool, concat]
+    # return [branch1x1, branch3x3, branch5x5, branch7x7, branch_pool, concat]
 
-def InceptionV3_block(x):
+def InceptionV3_block(x): #TODO Update code
     """
     2D/3D Convolutional block followed by Activation with optional MaxPooling or Dropout.
     C-(MP)-(D)
@@ -192,8 +310,33 @@ def InceptionV3_block(x):
 
     return x
 
+def assemble_network(inputs, layers):
+    if not (isinstance(inputs, list) and isinstance(layers, list)):
+        raise TypeError('passed inputs (%s) and layers (%s) need to be list.'%(type(inputs),type(layers)))
+
+    paths = []
+    subpaths = []
+    parallelFlag = False
+    for x_i in inputs:
+        for layer in sum(layers, []):
+            if type(layer) == list:
+                parallelFlag = True
+                x_i_temp = x_i
+                for sublayer in layer:
+                    x_i_temp = sublayer(x_i_temp)
+                subpaths.append(x_i_temp)
+            else:
+                if parallelFlag == True:
+                    x_i = layer(subpaths)
+                    parallelFlag = False
+                    subpaths = []
+                else:
+                    x_i = layer(x_i)
+        paths.append(x_i)
+
+    return paths
+
 def create_shared_dcnn_network_UV():
-    from keras.utils import plot_model
     from keras.models import Model
     from keras.layers import Input
     from keras.layers import Dense
@@ -315,9 +458,7 @@ def create_shared_dcnn_network_UV():
 
     return Model(inputs=[visible_U_1, visible_V_1, visible_U_2, visible_V_2], outputs=[output_xyze])    #outputs=[output_xyze, output_TPC])
 
-
 def create_shared_DEEPcnn_network():
-    from keras.utils import plot_model
     from keras.models import Model
     from keras.layers import Input
     from keras.layers import Dense
@@ -471,473 +612,4 @@ def create_shared_DEEPcnn_network():
     #output_TPC = Dense(1, activation='sigmoid', name='Output_TPC')(merge_TPC_1_2)
 
     return Model(inputs=[visible_U_1, visible_V_1, visible_U_2, visible_V_2], outputs=[output_xyze])    #outputs=[output_xyze, output_TPC])
-
-def create_inception_network():
-    from keras.utils import plot_model
-    from keras.models import Model
-    from keras.layers import Input
-    from keras.layers import Dense
-    from keras.layers import Flatten
-    from keras.layers.convolutional import Conv2D
-    from keras.layers.pooling import MaxPooling2D
-    from keras.layers.merge import concatenate
-    from keras import regularizers
-
-    regu = regularizers.l2(0.01)
-
-    # Input layers
-    visible_U_1 = Input(shape=(2048, 38, 1), name='U_Wire_1')
-    visible_U_2 = Input(shape=(2048, 38, 1), name='U_Wire_2')
-
-    visible_V_1 = Input(shape=(2048, 38, 1), name='V_Wire_1')
-    visible_V_2 = Input(shape=(2048, 38, 1), name='V_Wire_2')
-
-    # shared Layer U-wire
-    conv_1_U = Conv2D(64, (7, 7), activation='relu')
-
-    # shared Inception module U-wire
-    shared_inception_1_a_U = Conv2D(64, (1, 1), padding='same', activation='relu')
-    shared_inception_1_b1_U = Conv2D(96, (1, 1), padding='same', activation='relu')
-    shared_inception_1_b2_U = Conv2D(128, (3, 3), padding='same', activation='relu')
-    shared_inception_1_c1_U = Conv2D(16, (1, 1), padding='same', activation='relu')
-    shared_inception_1_c2_U = Conv2D(32, (5, 5), padding='same', activation='relu')
-    shared_inception_1_d1_U = MaxPooling2D((3, 3), strides=(1, 1), padding='same')
-    shared_inception_1_d2_U = Conv2D(32, (1, 1), padding='same', activation='relu')
-
-    shared_inception_2_a_U = Conv2D(128, (1, 1), padding='same', activation='relu')
-    shared_inception_2_b1_U = Conv2D(128, (1, 1), padding='same', activation='relu')
-    shared_inception_2_b2_U = Conv2D(192, (3, 3), padding='same', activation='relu')
-    shared_inception_2_c1_U = Conv2D(32, (1, 1), padding='same', activation='relu')
-    shared_inception_2_c2_U = Conv2D(96, (5, 5), padding='same', activation='relu')
-    shared_inception_2_d1_U = MaxPooling2D((3, 3), strides=(1, 1), padding='same')
-    shared_inception_2_d2_U = Conv2D(64, (1, 1), padding='same', activation='relu')
-
-    shared_inception_3_a_U = Conv2D(192, (1, 1), padding='same', activation='relu')
-    shared_inception_3_b1_U = Conv2D(96, (1, 1), padding='same', activation='relu')
-    shared_inception_3_b2_U = Conv2D(208, (3, 3), padding='same', activation='relu')
-    shared_inception_3_c1_U = Conv2D(16, (1, 1), padding='same', activation='relu')
-    shared_inception_3_c2_U = Conv2D(48, (5, 5), padding='same', activation='relu')
-    shared_inception_3_d1_U = MaxPooling2D((3, 3), strides=(1, 1), padding='same')
-    shared_inception_3_d2_U = Conv2D(64, (1, 1), padding='same', activation='relu')
-
-    shared_inception_4_a_U = Conv2D(160, (1, 1), padding='same', activation='relu')
-    shared_inception_4_b1_U = Conv2D(112, (1, 1), padding='same', activation='relu')
-    shared_inception_4_b2_U = Conv2D(224, (3, 3), padding='same', activation='relu')
-    shared_inception_4_c1_U = Conv2D(24, (1, 1), padding='same', activation='relu')
-    shared_inception_4_c2_U = Conv2D(64, (5, 5), padding='same', activation='relu')
-    shared_inception_4_d1_U = MaxPooling2D((3, 3), strides=(1, 1), padding='same')
-    shared_inception_4_d2_U = Conv2D(64, (1, 1), padding='same', activation='relu')
-
-    shared_inception_5_a_U = Conv2D(128, (1, 1), padding='same', activation='relu')
-    shared_inception_5_b1_U = Conv2D(128, (1, 1), padding='same', activation='relu')
-    shared_inception_5_b2_U = Conv2D(256, (3, 3), padding='same', activation='relu')
-    shared_inception_5_c1_U = Conv2D(24, (1, 1), padding='same', activation='relu')
-    shared_inception_5_c2_U = Conv2D(64, (5, 5), padding='same', activation='relu')
-    shared_inception_5_d1_U = MaxPooling2D((3, 3), strides=(1, 1), padding='same')
-    shared_inception_5_d2_U = Conv2D(64, (1, 1), padding='same', activation='relu')
-
-    shared_inception_6_a_U = Conv2D(112, (1, 1), padding='same', activation='relu')
-    shared_inception_6_b1_U = Conv2D(144, (1, 1), padding='same', activation='relu')
-    shared_inception_6_b2_U = Conv2D(288, (3, 3), padding='same', activation='relu')
-    shared_inception_6_c1_U = Conv2D(32, (1, 1), padding='same', activation='relu')
-    shared_inception_6_c2_U = Conv2D(64, (5, 5), padding='same', activation='relu')
-    shared_inception_6_d1_U = MaxPooling2D((3, 3), strides=(1, 1), padding='same')
-    shared_inception_6_d2_U = Conv2D(64, (1, 1), padding='same', activation='relu')
-
-    shared_inception_7_a_U = Conv2D(256, (1, 1), padding='same', activation='relu')
-    shared_inception_7_b1_U = Conv2D(160, (1, 1), padding='same', activation='relu')
-    shared_inception_7_b2_U = Conv2D(320, (3, 3), padding='same', activation='relu')
-    shared_inception_7_c1_U = Conv2D(32, (1, 1), padding='same', activation='relu')
-    shared_inception_7_c2_U = Conv2D(128, (5, 5), padding='same', activation='relu')
-    shared_inception_7_d1_U = MaxPooling2D((3, 3), strides=(1, 1), padding='same')
-    shared_inception_7_d2_U = Conv2D(128, (1, 1), padding='same', activation='relu')
-
-    shared_inception_8_a_U = Conv2D(256, (1, 1), padding='same', activation='relu')
-    shared_inception_8_b1_U = Conv2D(160, (1, 1), padding='same', activation='relu')
-    shared_inception_8_b2_U = Conv2D(320, (3, 3), padding='same', activation='relu')
-    shared_inception_8_c1_U = Conv2D(32, (1, 1), padding='same', activation='relu')
-    shared_inception_8_c2_U = Conv2D(128, (5, 5), padding='same', activation='relu')
-    shared_inception_8_d1_U = MaxPooling2D((3, 3), strides=(1, 1), padding='same')
-    shared_inception_8_d2_U = Conv2D(128, (1, 1), padding='same', activation='relu')
-
-    shared_inception_9_a_U = Conv2D(384, (1, 1), padding='same', activation='relu')
-    shared_inception_9_b1_U = Conv2D(192, (1, 1), padding='same', activation='relu')
-    shared_inception_9_b2_U = Conv2D(384, (3, 3), padding='same', activation='relu')
-    shared_inception_9_c1_U = Conv2D(48, (1, 1), padding='same', activation='relu')
-    shared_inception_9_c2_U = Conv2D(128, (5, 5), padding='same', activation='relu')
-    shared_inception_9_d1_U = MaxPooling2D((3, 3), strides=(1, 1), padding='same')
-    shared_inception_9_d2_U = Conv2D(128, (1, 1), padding='same', activation='relu')
-
-    # shared Layer V-wire
-    conv_1_V = Conv2D(64, (7, 7), activation='relu')
-
-    # shared Inception module V-wire
-    shared_inception_1_a_V = Conv2D(64, (1, 1), padding='same', activation='relu')
-    shared_inception_1_b1_V = Conv2D(96, (1, 1), padding='same', activation='relu')
-    shared_inception_1_b2_V = Conv2D(128, (3, 3), padding='same', activation='relu')
-    shared_inception_1_c1_V = Conv2D(16, (1, 1), padding='same', activation='relu')
-    shared_inception_1_c2_V = Conv2D(32, (5, 5), padding='same', activation='relu')
-    shared_inception_1_d1_V = MaxPooling2D((3, 3), strides=(1, 1), padding='same')
-    shared_inception_1_d2_V = Conv2D(32, (1, 1), padding='same', activation='relu')
-
-    shared_inception_2_a_V = Conv2D(128, (1, 1), padding='same', activation='relu')
-    shared_inception_2_b1_V = Conv2D(128, (1, 1), padding='same', activation='relu')
-    shared_inception_2_b2_V = Conv2D(192, (3, 3), padding='same', activation='relu')
-    shared_inception_2_c1_V = Conv2D(32, (1, 1), padding='same', activation='relu')
-    shared_inception_2_c2_V = Conv2D(96, (5, 5), padding='same', activation='relu')
-    shared_inception_2_d1_V = MaxPooling2D((3, 3), strides=(1, 1), padding='same')
-    shared_inception_2_d2_V = Conv2D(64, (1, 1), padding='same', activation='relu')
-
-    shared_inception_3_a_V = Conv2D(192, (1, 1), padding='same', activation='relu')
-    shared_inception_3_b1_V = Conv2D(96, (1, 1), padding='same', activation='relu')
-    shared_inception_3_b2_V = Conv2D(208, (3, 3), padding='same', activation='relu')
-    shared_inception_3_c1_V = Conv2D(16, (1, 1), padding='same', activation='relu')
-    shared_inception_3_c2_V = Conv2D(48, (5, 5), padding='same', activation='relu')
-    shared_inception_3_d1_V = MaxPooling2D((3, 3), strides=(1, 1), padding='same')
-    shared_inception_3_d2_V = Conv2D(64, (1, 1), padding='same', activation='relu')
-
-    shared_inception_4_a_V = Conv2D(160, (1, 1), padding='same', activation='relu')
-    shared_inception_4_b1_V = Conv2D(112, (1, 1), padding='same', activation='relu')
-    shared_inception_4_b2_V = Conv2D(224, (3, 3), padding='same', activation='relu')
-    shared_inception_4_c1_V = Conv2D(24, (1, 1), padding='same', activation='relu')
-    shared_inception_4_c2_V = Conv2D(64, (5, 5), padding='same', activation='relu')
-    shared_inception_4_d1_V = MaxPooling2D((3, 3), strides=(1, 1), padding='same')
-    shared_inception_4_d2_V = Conv2D(64, (1, 1), padding='same', activation='relu')
-
-    shared_inception_5_a_V = Conv2D(128, (1, 1), padding='same', activation='relu')
-    shared_inception_5_b1_V = Conv2D(128, (1, 1), padding='same', activation='relu')
-    shared_inception_5_b2_V = Conv2D(256, (3, 3), padding='same', activation='relu')
-    shared_inception_5_c1_V = Conv2D(24, (1, 1), padding='same', activation='relu')
-    shared_inception_5_c2_V = Conv2D(64, (5, 5), padding='same', activation='relu')
-    shared_inception_5_d1_V = MaxPooling2D((3, 3), strides=(1, 1), padding='same')
-    shared_inception_5_d2_V = Conv2D(64, (1, 1), padding='same', activation='relu')
-
-    shared_inception_6_a_V = Conv2D(112, (1, 1), padding='same', activation='relu')
-    shared_inception_6_b1_V = Conv2D(144, (1, 1), padding='same', activation='relu')
-    shared_inception_6_b2_V = Conv2D(288, (3, 3), padding='same', activation='relu')
-    shared_inception_6_c1_V = Conv2D(32, (1, 1), padding='same', activation='relu')
-    shared_inception_6_c2_V = Conv2D(64, (5, 5), padding='same', activation='relu')
-    shared_inception_6_d1_V = MaxPooling2D((3, 3), strides=(1, 1), padding='same')
-    shared_inception_6_d2_V = Conv2D(64, (1, 1), padding='same', activation='relu')
-
-    shared_inception_7_a_V = Conv2D(256, (1, 1), padding='same', activation='relu')
-    shared_inception_7_b1_V = Conv2D(160, (1, 1), padding='same', activation='relu')
-    shared_inception_7_b2_V = Conv2D(320, (3, 3), padding='same', activation='relu')
-    shared_inception_7_c1_V = Conv2D(32, (1, 1), padding='same', activation='relu')
-    shared_inception_7_c2_V = Conv2D(128, (5, 5), padding='same', activation='relu')
-    shared_inception_7_d1_V = MaxPooling2D((3, 3), strides=(1, 1), padding='same')
-    shared_inception_7_d2_V = Conv2D(128, (1, 1), padding='same', activation='relu')
-
-    shared_inception_8_a_V = Conv2D(256, (1, 1), padding='same', activation='relu')
-    shared_inception_8_b1_V = Conv2D(160, (1, 1), padding='same', activation='relu')
-    shared_inception_8_b2_V = Conv2D(320, (3, 3), padding='same', activation='relu')
-    shared_inception_8_c1_V = Conv2D(32, (1, 1), padding='same', activation='relu')
-    shared_inception_8_c2_V = Conv2D(128, (5, 5), padding='same', activation='relu')
-    shared_inception_8_d1_V = MaxPooling2D((3, 3), strides=(1, 1), padding='same')
-    shared_inception_8_d2_V = Conv2D(128, (1, 1), padding='same', activation='relu')
-
-    shared_inception_9_a_V = Conv2D(384, (1, 1), padding='same', activation='relu')
-    shared_inception_9_b1_V = Conv2D(192, (1, 1), padding='same', activation='relu')
-    shared_inception_9_b2_V = Conv2D(384, (3, 3), padding='same', activation='relu')
-    shared_inception_9_c1_V = Conv2D(48, (1, 1), padding='same', activation='relu')
-    shared_inception_9_c2_V = Conv2D(128, (5, 5), padding='same', activation='relu')
-    shared_inception_9_d1_V = MaxPooling2D((3, 3), strides=(1, 1), padding='same')
-    shared_inception_9_d2_V = Conv2D(128, (1, 1), padding='same', activation='relu')
-
-    # Application U-1
-    # U_1_conv_1 = conv_1_U(visible_U_1)
-    # U_1_conv_1 = MaxPooling2D(pool_size=3)(U_1_conv_1)
-
-    U_1_1_a = shared_inception_1_a_U(visible_U_1)
-    U_1_1_b = shared_inception_1_b2_U(shared_inception_1_b1_U(visible_U_1))
-    U_1_1_c = shared_inception_1_c2_U(shared_inception_1_c1_U(visible_U_1))
-    U_1_1_d = shared_inception_1_d2_U(shared_inception_1_d1_U(visible_U_1))
-    inception_1_U_1 = concatenate([U_1_1_a, U_1_1_b, U_1_1_c, U_1_1_d], axis=3)
-
-    U_1_2_a = shared_inception_2_a_U(inception_1_U_1)
-    U_1_2_b = shared_inception_2_b2_U(shared_inception_2_b1_U(inception_1_U_1))
-    U_1_2_c = shared_inception_2_c2_U(shared_inception_2_c1_U(inception_1_U_1))
-    U_1_2_d = shared_inception_2_d2_U(shared_inception_2_d1_U(inception_1_U_1))
-    inception_2_U_1 = concatenate([U_1_2_a, U_1_2_b, U_1_2_c, U_1_2_d], axis=3)
-
-    inception_2_U_1 = MaxPooling2D(pool_size=3)(inception_2_U_1)
-
-    U_1_3_a = shared_inception_3_a_U(inception_2_U_1)
-    U_1_3_b = shared_inception_3_b2_U(shared_inception_3_b1_U(inception_2_U_1))
-    U_1_3_c = shared_inception_3_c2_U(shared_inception_3_c1_U(inception_2_U_1))
-    U_1_3_d = shared_inception_3_d2_U(shared_inception_3_d1_U(inception_2_U_1))
-    inception_3_U_1 = concatenate([U_1_3_a, U_1_3_b, U_1_3_c, U_1_3_d], axis=3)
-
-    U_1_4_a = shared_inception_4_a_U(inception_3_U_1)
-    U_1_4_b = shared_inception_4_b2_U(shared_inception_4_b1_U(inception_3_U_1))
-    U_1_4_c = shared_inception_4_c2_U(shared_inception_4_c1_U(inception_3_U_1))
-    U_1_4_d = shared_inception_4_d2_U(shared_inception_4_d1_U(inception_3_U_1))
-    inception_4_U_1 = concatenate([U_1_4_a, U_1_4_b, U_1_4_c, U_1_4_d], axis=3)
-
-    inception_4_U_1 = MaxPooling2D(pool_size=3)(inception_4_U_1)
-
-    U_1_5_a = shared_inception_5_a_U(inception_4_U_1)
-    U_1_5_b = shared_inception_5_b2_U(shared_inception_5_b1_U(inception_4_U_1))
-    U_1_5_c = shared_inception_5_c2_U(shared_inception_5_c1_U(inception_4_U_1))
-    U_1_5_d = shared_inception_5_d2_U(shared_inception_5_d1_U(inception_4_U_1))
-    inception_5_U_1 = concatenate([U_1_5_a, U_1_5_b, U_1_5_c, U_1_5_d], axis=3)
-
-    U_1_6_a = shared_inception_6_a_U(inception_5_U_1)
-    U_1_6_b = shared_inception_6_b2_U(shared_inception_6_b1_U(inception_5_U_1))
-    U_1_6_c = shared_inception_6_c2_U(shared_inception_6_c1_U(inception_5_U_1))
-    U_1_6_d = shared_inception_6_d2_U(shared_inception_6_d1_U(inception_5_U_1))
-    inception_6_U_1 = concatenate([U_1_6_a, U_1_6_b, U_1_6_c, U_1_6_d], axis=3)
-
-    U_1_7_a = shared_inception_7_a_U(inception_6_U_1)
-    U_1_7_b = shared_inception_7_b2_U(shared_inception_7_b1_U(inception_6_U_1))
-    U_1_7_c = shared_inception_7_c2_U(shared_inception_7_c1_U(inception_6_U_1))
-    U_1_7_d = shared_inception_7_d2_U(shared_inception_7_d1_U(inception_6_U_1))
-    inception_7_U_1 = concatenate([U_1_7_a, U_1_7_b, U_1_7_c, U_1_7_d], axis=3)
-
-    inception_7_U_1 = MaxPooling2D(pool_size=3)(inception_7_U_1)
-
-    U_1_8_a = shared_inception_8_a_U(inception_7_U_1)
-    U_1_8_b = shared_inception_8_b2_U(shared_inception_8_b1_U(inception_7_U_1))
-    U_1_8_c = shared_inception_8_c2_U(shared_inception_8_c1_U(inception_7_U_1))
-    U_1_8_d = shared_inception_8_d2_U(shared_inception_8_d1_U(inception_7_U_1))
-    inception_8_U_1 = concatenate([U_1_8_a, U_1_8_b, U_1_8_c, U_1_8_d], axis=3)
-
-    U_1_9_a = shared_inception_9_a_U(inception_8_U_1)
-    U_1_9_b = shared_inception_9_b2_U(shared_inception_9_b1_U(inception_8_U_1))
-    U_1_9_c = shared_inception_9_c2_U(shared_inception_9_c1_U(inception_8_U_1))
-    U_1_9_d = shared_inception_9_d2_U(shared_inception_9_d1_U(inception_8_U_1))
-    inception_9_U_1 = concatenate([U_1_9_a, U_1_9_b, U_1_9_c, U_1_9_d], axis=3)
-
-    inception_9_U_1 = MaxPooling2D(pool_size=(7, 1))(inception_9_U_1)
-
-
-    # Application U-2
-    # U_2_conv_1 = conv_1_U(visible_U_2)
-    # U_2_conv_1 = MaxPooling2D(pool_size=3)(U_2_conv_1)
-
-    U_2_1_a = shared_inception_1_a_U(visible_U_2)
-    U_2_1_b = shared_inception_1_b2_U(shared_inception_1_b1_U(visible_U_2))
-    U_2_1_c = shared_inception_1_c2_U(shared_inception_1_c1_U(visible_U_2))
-    U_2_1_d = shared_inception_1_d2_U(shared_inception_1_d1_U(visible_U_2))
-    inception_1_U_2 = concatenate([U_2_1_a, U_2_1_b, U_2_1_c, U_2_1_d], axis=3)
-
-    U_2_2_a = shared_inception_2_a_U(inception_1_U_2)
-    U_2_2_b = shared_inception_2_b2_U(shared_inception_2_b1_U(inception_1_U_2))
-    U_2_2_c = shared_inception_2_c2_U(shared_inception_2_c1_U(inception_1_U_2))
-    U_2_2_d = shared_inception_2_d2_U(shared_inception_2_d1_U(inception_1_U_2))
-    inception_2_U_2 = concatenate([U_2_2_a, U_2_2_b, U_2_2_c, U_2_2_d], axis=3)
-
-    inception_2_U_2 = MaxPooling2D(pool_size=3)(inception_2_U_2)
-
-    U_2_3_a = shared_inception_3_a_U(inception_2_U_2)
-    U_2_3_b = shared_inception_3_b2_U(shared_inception_3_b1_U(inception_2_U_2))
-    U_2_3_c = shared_inception_3_c2_U(shared_inception_3_c1_U(inception_2_U_2))
-    U_2_3_d = shared_inception_3_d2_U(shared_inception_3_d1_U(inception_2_U_2))
-    inception_3_U_2 = concatenate([U_2_3_a, U_2_3_b, U_2_3_c, U_2_3_d], axis=3)
-
-    U_2_4_a = shared_inception_4_a_U(inception_3_U_2)
-    U_2_4_b = shared_inception_4_b2_U(shared_inception_4_b1_U(inception_3_U_2))
-    U_2_4_c = shared_inception_4_c2_U(shared_inception_4_c1_U(inception_3_U_2))
-    U_2_4_d = shared_inception_4_d2_U(shared_inception_4_d1_U(inception_3_U_2))
-    inception_4_U_2 = concatenate([U_2_4_a, U_2_4_b, U_2_4_c, U_2_4_d], axis=3)
-
-    inception_4_U_2 = MaxPooling2D(pool_size=3)(inception_4_U_2)
-
-    U_2_5_a = shared_inception_5_a_U(inception_4_U_2)
-    U_2_5_b = shared_inception_5_b2_U(shared_inception_5_b1_U(inception_4_U_2))
-    U_2_5_c = shared_inception_5_c2_U(shared_inception_5_c1_U(inception_4_U_2))
-    U_2_5_d = shared_inception_5_d2_U(shared_inception_5_d1_U(inception_4_U_2))
-    inception_5_U_2 = concatenate([U_2_5_a, U_2_5_b, U_2_5_c, U_2_5_d], axis=3)
-
-    U_2_6_a = shared_inception_6_a_U(inception_5_U_2)
-    U_2_6_b = shared_inception_6_b2_U(shared_inception_6_b1_U(inception_5_U_2))
-    U_2_6_c = shared_inception_6_c2_U(shared_inception_6_c1_U(inception_5_U_2))
-    U_2_6_d = shared_inception_6_d2_U(shared_inception_6_d1_U(inception_5_U_2))
-    inception_6_U_2 = concatenate([U_2_6_a, U_2_6_b, U_2_6_c, U_2_6_d], axis=3)
-
-    U_2_7_a = shared_inception_7_a_U(inception_6_U_2)
-    U_2_7_b = shared_inception_7_b2_U(shared_inception_7_b1_U(inception_6_U_2))
-    U_2_7_c = shared_inception_7_c2_U(shared_inception_7_c1_U(inception_6_U_2))
-    U_2_7_d = shared_inception_7_d2_U(shared_inception_7_d1_U(inception_6_U_2))
-    inception_7_U_2 = concatenate([U_2_7_a, U_2_7_b, U_2_7_c, U_2_7_d], axis=3)
-
-    inception_7_U_2 = MaxPooling2D(pool_size=3)(inception_7_U_2)
-
-    U_2_8_a = shared_inception_8_a_U(inception_7_U_2)
-    U_2_8_b = shared_inception_8_b2_U(shared_inception_8_b1_U(inception_7_U_2))
-    U_2_8_c = shared_inception_8_c2_U(shared_inception_8_c1_U(inception_7_U_2))
-    U_2_8_d = shared_inception_8_d2_U(shared_inception_8_d1_U(inception_7_U_2))
-    inception_8_U_2 = concatenate([U_2_8_a, U_2_8_b, U_2_8_c, U_2_8_d], axis=3)
-
-    U_2_9_a = shared_inception_9_a_U(inception_8_U_2)
-    U_2_9_b = shared_inception_9_b2_U(shared_inception_9_b1_U(inception_8_U_2))
-    U_2_9_c = shared_inception_9_c2_U(shared_inception_9_c1_U(inception_8_U_2))
-    U_2_9_d = shared_inception_9_d2_U(shared_inception_9_d1_U(inception_8_U_2))
-    inception_9_U_2 = concatenate([U_2_9_a, U_2_9_b, U_2_9_c, U_2_9_d], axis=3)
-
-    inception_9_U_2 = MaxPooling2D(pool_size=(7, 1))(inception_9_U_2)
-
-
-
-    # Application V-1
-    # V_1_conv_1 = conv_1_V(visible_V_1)
-    # V_1_conv_1 = MaxPooling2D(pool_size=3)(V_1_conv_1)
-
-    V_1_1_a = shared_inception_1_a_V(visible_V_1)
-    V_1_1_b = shared_inception_1_b2_V(shared_inception_1_b1_V(visible_V_1))
-    V_1_1_c = shared_inception_1_c2_V(shared_inception_1_c1_V(visible_V_1))
-    V_1_1_d = shared_inception_1_d2_V(shared_inception_1_d1_V(visible_V_1))
-    inception_1_V_1 = concatenate([V_1_1_a, V_1_1_b, V_1_1_c, V_1_1_d], axis=3)
-
-    V_1_2_a = shared_inception_2_a_V(inception_1_V_1)
-    V_1_2_b = shared_inception_2_b2_V(shared_inception_2_b1_V(inception_1_V_1))
-    V_1_2_c = shared_inception_2_c2_V(shared_inception_2_c1_V(inception_1_V_1))
-    V_1_2_d = shared_inception_2_d2_V(shared_inception_2_d1_V(inception_1_V_1))
-    inception_2_V_1 = concatenate([V_1_2_a, V_1_2_b, V_1_2_c, V_1_2_d], axis=3)
-
-    inception_2_V_1 = MaxPooling2D(pool_size=3)(inception_2_V_1)
-
-    V_1_3_a = shared_inception_3_a_V(inception_2_V_1)
-    V_1_3_b = shared_inception_3_b2_V(shared_inception_3_b1_V(inception_2_V_1))
-    V_1_3_c = shared_inception_3_c2_V(shared_inception_3_c1_V(inception_2_V_1))
-    V_1_3_d = shared_inception_3_d2_V(shared_inception_3_d1_V(inception_2_V_1))
-    inception_3_V_1 = concatenate([V_1_3_a, V_1_3_b, V_1_3_c, V_1_3_d], axis=3)
-
-    V_1_4_a = shared_inception_4_a_V(inception_3_V_1)
-    V_1_4_b = shared_inception_4_b2_V(shared_inception_4_b1_V(inception_3_V_1))
-    V_1_4_c = shared_inception_4_c2_V(shared_inception_4_c1_V(inception_3_V_1))
-    V_1_4_d = shared_inception_4_d2_V(shared_inception_4_d1_V(inception_3_V_1))
-    inception_4_V_1 = concatenate([V_1_4_a, V_1_4_b, V_1_4_c, V_1_4_d], axis=3)
-
-    inception_4_V_1 = MaxPooling2D(pool_size=3)(inception_4_V_1)
-
-    V_1_5_a = shared_inception_5_a_V(inception_4_V_1)
-    V_1_5_b = shared_inception_5_b2_V(shared_inception_5_b1_V(inception_4_V_1))
-    V_1_5_c = shared_inception_5_c2_V(shared_inception_5_c1_V(inception_4_V_1))
-    V_1_5_d = shared_inception_5_d2_V(shared_inception_5_d1_V(inception_4_V_1))
-    inception_5_V_1 = concatenate([V_1_5_a, V_1_5_b, V_1_5_c, V_1_5_d], axis=3)
-
-    V_1_6_a = shared_inception_6_a_V(inception_5_V_1)
-    V_1_6_b = shared_inception_6_b2_V(shared_inception_6_b1_V(inception_5_V_1))
-    V_1_6_c = shared_inception_6_c2_V(shared_inception_6_c1_V(inception_5_V_1))
-    V_1_6_d = shared_inception_6_d2_V(shared_inception_6_d1_V(inception_5_V_1))
-    inception_6_V_1 = concatenate([V_1_6_a, V_1_6_b, V_1_6_c, V_1_6_d], axis=3)
-
-    V_1_7_a = shared_inception_7_a_V(inception_6_V_1)
-    V_1_7_b = shared_inception_7_b2_V(shared_inception_7_b1_V(inception_6_V_1))
-    V_1_7_c = shared_inception_7_c2_V(shared_inception_7_c1_V(inception_6_V_1))
-    V_1_7_d = shared_inception_7_d2_V(shared_inception_7_d1_V(inception_6_V_1))
-    inception_7_V_1 = concatenate([V_1_7_a, V_1_7_b, V_1_7_c, V_1_7_d], axis=3)
-
-    inception_7_V_1 = MaxPooling2D(pool_size=3)(inception_7_V_1)
-
-    V_1_8_a = shared_inception_8_a_V(inception_7_V_1)
-    V_1_8_b = shared_inception_8_b2_V(shared_inception_8_b1_V(inception_7_V_1))
-    V_1_8_c = shared_inception_8_c2_V(shared_inception_8_c1_V(inception_7_V_1))
-    V_1_8_d = shared_inception_8_d2_V(shared_inception_8_d1_V(inception_7_V_1))
-    inception_8_V_1 = concatenate([V_1_8_a, V_1_8_b, V_1_8_c, V_1_8_d], axis=3)
-
-    V_1_9_a = shared_inception_9_a_V(inception_8_V_1)
-    V_1_9_b = shared_inception_9_b2_V(shared_inception_9_b1_V(inception_8_V_1))
-    V_1_9_c = shared_inception_9_c2_V(shared_inception_9_c1_V(inception_8_V_1))
-    V_1_9_d = shared_inception_9_d2_V(shared_inception_9_d1_V(inception_8_V_1))
-    inception_9_V_1 = concatenate([V_1_9_a, V_1_9_b, V_1_9_c, V_1_9_d], axis=3)
-
-    inception_9_V_1 = MaxPooling2D(pool_size=(7, 1))(inception_9_V_1)
-
-
-    # Application V-2
-    # V_2_conv_1 = conv_1_V(visible_V_2)
-    # V_2_conv_1 = MaxPooling2D(pool_size=3)(V_2_conv_1)
-
-    V_2_1_a = shared_inception_1_a_V(visible_V_2)
-    V_2_1_b = shared_inception_1_b2_V(shared_inception_1_b1_V(visible_V_2))
-    V_2_1_c = shared_inception_1_c2_V(shared_inception_1_c1_V(visible_V_2))
-    V_2_1_d = shared_inception_1_d2_V(shared_inception_1_d1_V(visible_V_2))
-    inception_1_V_2 = concatenate([V_2_1_a, V_2_1_b, V_2_1_c, V_2_1_d], axis=3)
-
-    V_2_2_a = shared_inception_2_a_V(inception_1_V_2)
-    V_2_2_b = shared_inception_2_b2_V(shared_inception_2_b1_V(inception_1_V_2))
-    V_2_2_c = shared_inception_2_c2_V(shared_inception_2_c1_V(inception_1_V_2))
-    V_2_2_d = shared_inception_2_d2_V(shared_inception_2_d1_V(inception_1_V_2))
-    inception_2_V_2 = concatenate([V_2_2_a, V_2_2_b, V_2_2_c, V_2_2_d], axis=3)
-
-    inception_2_V_2 = MaxPooling2D(pool_size=3)(inception_2_V_2)
-
-    V_2_3_a = shared_inception_3_a_V(inception_2_V_2)
-    V_2_3_b = shared_inception_3_b2_V(shared_inception_3_b1_V(inception_2_V_2))
-    V_2_3_c = shared_inception_3_c2_V(shared_inception_3_c1_V(inception_2_V_2))
-    V_2_3_d = shared_inception_3_d2_V(shared_inception_3_d1_V(inception_2_V_2))
-    inception_3_V_2 = concatenate([V_2_3_a, V_2_3_b, V_2_3_c, V_2_3_d], axis=3)
-
-    V_2_4_a = shared_inception_4_a_V(inception_3_V_2)
-    V_2_4_b = shared_inception_4_b2_V(shared_inception_4_b1_V(inception_3_V_2))
-    V_2_4_c = shared_inception_4_c2_V(shared_inception_4_c1_V(inception_3_V_2))
-    V_2_4_d = shared_inception_4_d2_V(shared_inception_4_d1_V(inception_3_V_2))
-    inception_4_V_2 = concatenate([V_2_4_a, V_2_4_b, V_2_4_c, V_2_4_d], axis=3)
-
-    inception_4_V_2 = MaxPooling2D(pool_size=3)(inception_4_V_2)
-
-    V_2_5_a = shared_inception_5_a_V(inception_4_V_2)
-    V_2_5_b = shared_inception_5_b2_V(shared_inception_5_b1_V(inception_4_V_2))
-    V_2_5_c = shared_inception_5_c2_V(shared_inception_5_c1_V(inception_4_V_2))
-    V_2_5_d = shared_inception_5_d2_V(shared_inception_5_d1_V(inception_4_V_2))
-    inception_5_V_2 = concatenate([V_2_5_a, V_2_5_b, V_2_5_c, V_2_5_d], axis=3)
-
-    V_2_6_a = shared_inception_6_a_V(inception_5_V_2)
-    V_2_6_b = shared_inception_6_b2_V(shared_inception_6_b1_V(inception_5_V_2))
-    V_2_6_c = shared_inception_6_c2_V(shared_inception_6_c1_V(inception_5_V_2))
-    V_2_6_d = shared_inception_6_d2_V(shared_inception_6_d1_V(inception_5_V_2))
-    inception_6_V_2 = concatenate([V_2_6_a, V_2_6_b, V_2_6_c, V_2_6_d], axis=3)
-
-    V_2_7_a = shared_inception_7_a_V(inception_6_V_2)
-    V_2_7_b = shared_inception_7_b2_V(shared_inception_7_b1_V(inception_6_V_2))
-    V_2_7_c = shared_inception_7_c2_V(shared_inception_7_c1_V(inception_6_V_2))
-    V_2_7_d = shared_inception_7_d2_V(shared_inception_7_d1_V(inception_6_V_2))
-    inception_7_V_2 = concatenate([V_2_7_a, V_2_7_b, V_2_7_c, V_2_7_d], axis=3)
-
-    inception_7_V_2 = MaxPooling2D(pool_size=3)(inception_7_V_2)
-
-    V_2_8_a = shared_inception_8_a_V(inception_7_V_2)
-    V_2_8_b = shared_inception_8_b2_V(shared_inception_8_b1_V(inception_7_V_2))
-    V_2_8_c = shared_inception_8_c2_V(shared_inception_8_c1_V(inception_7_V_2))
-    V_2_8_d = shared_inception_8_d2_V(shared_inception_8_d1_V(inception_7_V_2))
-    inception_8_V_2 = concatenate([V_2_8_a, V_2_8_b, V_2_8_c, V_2_8_d], axis=3)
-
-    V_2_9_a = shared_inception_9_a_V(inception_8_V_2)
-    V_2_9_b = shared_inception_9_b2_V(shared_inception_9_b1_V(inception_8_V_2))
-    V_2_9_c = shared_inception_9_c2_V(shared_inception_9_c1_V(inception_8_V_2))
-    V_2_9_d = shared_inception_9_d2_V(shared_inception_9_d1_V(inception_8_V_2))
-    inception_9_V_2 = concatenate([V_2_9_a, V_2_9_b, V_2_9_c, V_2_9_d], axis=3)
-
-    inception_9_V_2 = MaxPooling2D(pool_size=(7, 1))(inception_9_V_2)
-
-
-    # Merge U- and V-wire of TPC 1 and TPC 2
-    merge_TPC_1 = concatenate([inception_9_U_1, inception_9_V_1], name='TPC_1')
-    merge_TPC_2 = concatenate([inception_9_U_2, inception_9_V_2], name='TPC_2')
-
-    # Flatten
-    flat_TPC_1 = Flatten(name='Flat_TPC_1')(merge_TPC_1)
-    flat_TPC_2 = Flatten(name='Flat_TPC_2')(merge_TPC_2)
-
-    # Define shared Dense Layers
-    shared_dense_1 = Dense(16, activation='relu', name='Shared_1_TPC_1_and_2', kernel_regularizer=regu)
-    shared_dense_2 = Dense(8, activation='relu', name='Shared_2_TPC_1_and_2', kernel_regularizer=regu)
-
-    # Dense Layers
-    dense_1_TPC_1 = shared_dense_1(flat_TPC_1)
-    dense_1_TPC_2 = shared_dense_1(flat_TPC_2)
-
-    dense_2_TPC_1 = shared_dense_2(dense_1_TPC_1)
-    dense_2_TPC_2 = shared_dense_2(dense_1_TPC_2)
-
-    # Merge Dense Layers
-    merge_TPC_1_2 = concatenate([dense_2_TPC_1, dense_2_TPC_2], name='TPC_1_and_2')
-
-    # Output
-    output_xyze = Dense(4, name='Output_xyze')(merge_TPC_1_2)
-
-    return Model(inputs=[visible_U_1, visible_V_1, visible_U_2, visible_V_2], outputs=[output_xyze])
-
 
