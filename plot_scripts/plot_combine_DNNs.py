@@ -59,28 +59,28 @@ for key,model in files.items():
     data[key] = pickle.load(open(folderRUNS + files[key], "rb"))
     data[key]['MCRunEventNumber'] = [(RN, EN) for RN, EN in zip(data[key]['MCRunNumber'], data[key]['MCEventNumber'])]
 
-# for i in range(100):
-#     print i, data['1']['MCRunEventNumber'][i], data['2']['MCRunEventNumber'][i]
-
-kwargs = {
-    'range': (0, 1),
-    'bins': 100,
-    'density': True
-}
-
 data['mean'] = {}
 data['mean']['DNNPred'] = np.add(data['1']['DNNPred'], data['2']['DNNPred'])/2.
 data['mean']['DNNPredClass'] = data['mean']['DNNPred'].argmax(axis=-1)
 data['mean']['DNNPredTrueClass'] = data['mean']['DNNPred'][:, 1]
 data['mean']['DNNTrueClass'] = data['1']['DNNTrue'].argmax(axis=-1)
 
-data['max'] = {}
-data['max']['DNNPred'] = np.vstack((np.maximum(data['1']['DNNPred'], data['2']['DNNPred'])[:,0],
-                                         np.minimum(data['1']['DNNPred'], data['2']['DNNPred'])[:,1]))
 
-print data['max']['DNNPred'].shape
-data['max']['DNNPred'] = np.swapaxes(data['max']['DNNPred'], 0, 1)
-print data['max']['DNNPred'].shape
+
+data['max'] = {}
+# test = (2.0*data['1']['DNNPred'][:,0]*data['2']['DNNPred'][:,0])/(data['1']['DNNPred'][:,0]+data['2']['DNNPred'][:,0])
+# test = np.sqrt(data['1']['DNNPred'][:,0]*data['2']['DNNPred'][:,0])
+# test = np.sqrt(data['1']['DNNPred'][:,0]**2+data['2']['DNNPred'][:,0]**2)/np.sqrt(2.)
+test = np.maximum(data['1']['DNNPred'][:,0], data['2']['DNNPred'][:,0])
+data['max']['DNNPred'] = np.stack((test,1.-test), axis=1)
+
+# test = np.sqrt(data['1']['DNNPred'][:,1]**2+data['2']['DNNPred'][:,1]**2)/np.sqrt(2.)
+# data['max']['DNNPred'] = np.stack((1.-test,test), axis=1)
+
+
+# print data['max']['DNNPred'].shape
+# data['max']['DNNPred'] = np.swapaxes(data['max']['DNNPred'], 0, 1)
+# print data['max']['DNNPred'].shape
 
 for i in range(2):
     print data['1']['DNNPred'][i], data['2']['DNNPred'][i], data['max']['DNNPred'][i]
@@ -90,8 +90,11 @@ data['max']['DNNPredClass'] = data['max']['DNNPred'].argmax(axis=-1)
 data['max']['DNNPredTrueClass'] = data['max']['DNNPred'][:, 1]
 data['max']['DNNTrueClass'] = data['1']['DNNTrue'].argmax(axis=-1)
 
-
-
+kwargs = {
+    'range': (0, 1),
+    'bins': 100,
+    'density': True
+}
 
 hist_1ee, bin_edges = np.histogram(data['1']['DNNPredTrueClass'][data['1']['DNNTrueClass'] == 1], **kwargs)
 hist_1y, bin_edges = np.histogram(data['1']['DNNPredTrueClass'][data['1']['DNNTrueClass'] == 0], **kwargs)
@@ -150,18 +153,38 @@ plt.close()
 from sklearn.metrics import confusion_matrix, precision_score, recall_score, \
     f1_score, accuracy_score, classification_report, precision_recall_curve, roc_curve, roc_auc_score
 
+maskSS = data['1']['CCIsSS'] == 1
+maskMS = data['1']['CCIsSS'] == 0
+
 data['1']['prc'] = precision_recall_curve(data['1']['DNNTrueClass'], data['1']['DNNPredTrueClass'])
 data['2']['prc'] = precision_recall_curve(data['2']['DNNTrueClass'], data['2']['DNNPredTrueClass'])
 data['mean']['prc'] = precision_recall_curve(data['mean']['DNNTrueClass'], data['mean']['DNNPredTrueClass'])
 data['max']['prc'] = precision_recall_curve(data['max']['DNNTrueClass'], data['max']['DNNPredTrueClass'])
 
+data['1']['roc-SS'] = roc_curve(data['1']['DNNTrueClass'][maskSS], data['1']['DNNPredTrueClass'][maskSS])
+data['2']['roc-SS'] = roc_curve(data['2']['DNNTrueClass'][maskSS], data['2']['DNNPredTrueClass'][maskSS])
+data['1']['roc_auc-SS'] = roc_auc_score(data['1']['DNNTrueClass'][maskSS], data['1']['DNNPredTrueClass'][maskSS])
+data['2']['roc_auc-SS'] = roc_auc_score(data['2']['DNNTrueClass'][maskSS], data['2']['DNNPredTrueClass'][maskSS])
+data['1']['roc-MS'] = roc_curve(data['1']['DNNTrueClass'][maskMS], data['1']['DNNPredTrueClass'][maskMS])
+data['2']['roc-MS'] = roc_curve(data['2']['DNNTrueClass'][maskMS], data['2']['DNNPredTrueClass'][maskMS])
+data['1']['roc_auc-MS'] = roc_auc_score(data['1']['DNNTrueClass'][maskMS], data['1']['DNNPredTrueClass'][maskMS])
+data['2']['roc_auc-MS'] = roc_auc_score(data['2']['DNNTrueClass'][maskMS], data['2']['DNNPredTrueClass'][maskMS])
 data['1']['roc'] = roc_curve(data['1']['DNNTrueClass'], data['1']['DNNPredTrueClass'])
 data['2']['roc'] = roc_curve(data['2']['DNNTrueClass'], data['2']['DNNPredTrueClass'])
-data['mean']['roc'] = roc_curve(data['mean']['DNNTrueClass'], data['mean']['DNNPredTrueClass'])
-data['max']['roc'] = roc_curve(data['max']['DNNTrueClass'], data['max']['DNNPredTrueClass'])
-
 data['1']['roc_auc'] = roc_auc_score(data['1']['DNNTrueClass'], data['1']['DNNPredTrueClass'])
 data['2']['roc_auc'] = roc_auc_score(data['2']['DNNTrueClass'], data['2']['DNNPredTrueClass'])
+
+
+data['mean']['roc-SS'] = roc_curve(data['mean']['DNNTrueClass'][maskSS], data['mean']['DNNPredTrueClass'][maskSS])
+data['max']['roc-SS'] = roc_curve(data['max']['DNNTrueClass'][maskSS], data['max']['DNNPredTrueClass'][maskSS])
+data['mean']['roc_auc-SS'] = roc_auc_score(data['mean']['DNNTrueClass'][maskSS], data['mean']['DNNPredTrueClass'][maskSS])
+data['max']['roc_auc-SS'] = roc_auc_score(data['max']['DNNTrueClass'][maskSS], data['max']['DNNPredTrueClass'][maskSS])
+data['mean']['roc-MS'] = roc_curve(data['mean']['DNNTrueClass'][maskMS], data['mean']['DNNPredTrueClass'][maskMS])
+data['max']['roc-MS'] = roc_curve(data['max']['DNNTrueClass'][maskMS], data['max']['DNNPredTrueClass'][maskMS])
+data['mean']['roc_auc-MS'] = roc_auc_score(data['mean']['DNNTrueClass'][maskMS], data['mean']['DNNPredTrueClass'][maskMS])
+data['max']['roc_auc-MS'] = roc_auc_score(data['max']['DNNTrueClass'][maskMS], data['max']['DNNPredTrueClass'][maskMS])
+data['mean']['roc'] = roc_curve(data['mean']['DNNTrueClass'], data['mean']['DNNPredTrueClass'])
+data['max']['roc'] = roc_curve(data['max']['DNNTrueClass'], data['max']['DNNPredTrueClass'])
 data['mean']['roc_auc'] = roc_auc_score(data['mean']['DNNTrueClass'], data['mean']['DNNPredTrueClass'])
 data['max']['roc_auc'] = roc_auc_score(data['max']['DNNTrueClass'], data['max']['DNNPredTrueClass'])
 
@@ -179,7 +202,6 @@ plt.ylim([0, 1])
 plt.savefig(folderRUNS+ 'precision_vs_recall.pdf', bbox_inches='tight')
 plt.close()
 
-
 plt.clf()
 plt.plot(data['1']['roc'][0], data['1']['roc'][1], label='U (%.1f%%)' % (data['1']['roc_auc']*100.))
 plt.plot(data['2']['roc'][0], data['2']['roc'][1], label='V (%.1f%%)' % (data['2']['roc_auc']*100.))
@@ -194,26 +216,63 @@ plt.ylim([0, 1])
 plt.savefig(folderRUNS + 'roc_curve.pdf', bbox_inches='tight')
 plt.close()
 
+plt.clf()
+plt.plot(data['1']['roc'][0], data['1']['roc'][1], label='U (%.1f%%)' % (data['1']['roc_auc']*100.))
+plt.plot(data['2']['roc'][0], data['2']['roc'][1], label='V (%.1f%%)' % (data['2']['roc_auc']*100.))
+plt.plot(data['1']['roc-SS'][0], data['1']['roc-SS'][1], label='U SS (%.1f%%)' % (data['1']['roc_auc-SS']*100.))
+plt.plot(data['2']['roc-SS'][0], data['2']['roc-SS'][1], label='V SS (%.1f%%)' % (data['2']['roc_auc-SS']*100.))
+plt.plot(data['1']['roc-MS'][0], data['1']['roc-MS'][1], label='U MS (%.1f%%)' % (data['1']['roc_auc-MS']*100.))
+plt.plot(data['2']['roc-MS'][0], data['2']['roc-MS'][1], label='V MS (%.1f%%)' % (data['2']['roc_auc-MS']*100.))
+plt.plot([0, 1], [0, 1], 'k--')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.legend(loc='lower right')
+plt.xlim([0, 1])
+plt.ylim([0, 1])
+plt.savefig(folderRUNS + 'roc_U-V_SS-MS_curve.pdf', bbox_inches='tight')
+plt.close()
+
+plt.clf()
+plt.plot(data['mean']['roc'][0], data['mean']['roc'][1], label='<U+V> (%.1f%%)' % (data['mean']['roc_auc']*100.))
+plt.plot(data['max']['roc'][0], data['max']['roc'][1], label='max(U,V) (%.1f%%)' % (data['max']['roc_auc']*100.))
+plt.plot(data['mean']['roc-SS'][0], data['mean']['roc-SS'][1], label='<U+V> SS (%.1f%%)' % (data['mean']['roc_auc-SS']*100.))
+plt.plot(data['max']['roc-SS'][0], data['max']['roc-SS'][1], label='max(U,V) SS (%.1f%%)' % (data['max']['roc_auc-SS']*100.))
+plt.plot(data['mean']['roc-MS'][0], data['mean']['roc-MS'][1], label='<U+V> MS (%.1f%%)' % (data['mean']['roc_auc-MS']*100.))
+plt.plot(data['max']['roc-MS'][0], data['max']['roc-MS'][1], label='max(U,V) MS (%.1f%%)' % (data['max']['roc_auc-MS']*100.))
+plt.plot([0, 1], [0, 1], 'k--')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.legend(loc='lower right')
+plt.xlim([0, 1])
+plt.ylim([0, 1])
+plt.savefig(folderRUNS + 'roc_U+V_SS-MS_curve.pdf', bbox_inches='tight')
+plt.close()
+
+plot_scatter_hist2d(data['1']['DNNPredTrueClass'][data['1']['DNNTrueClass'] == 1],
+                    data['2']['DNNPredTrueClass'][data['2']['DNNTrueClass'] == 1],
+                    'U', 'V', '2beta events', folderRUNS + 'hist2d_SS+MS_signal.pdf')
+
+plot_scatter_hist2d(data['1']['DNNPredTrueClass'][data['1']['DNNTrueClass'] == 0],
+                         data['2']['DNNPredTrueClass'][data['2']['DNNTrueClass'] == 0],
+                         'U', 'V', 'gamma events', folderRUNS + 'hist2d_SS+MS_background.pdf')
+
+plot_scatter_hist2d(data['1']['DNNPredTrueClass'][(data['1']['DNNTrueClass'] == 1) & (data['1']['CCIsSS'] == 1)],
+                    data['2']['DNNPredTrueClass'][(data['2']['DNNTrueClass'] == 1) & (data['1']['CCIsSS'] == 1)],
+                    'U', 'V', '2beta events', folderRUNS + 'hist2d_SS_signal.pdf')
+
+plot_scatter_hist2d(data['1']['DNNPredTrueClass'][(data['1']['DNNTrueClass'] == 0) & (data['1']['CCIsSS'] == 1)],
+                    data['2']['DNNPredTrueClass'][(data['2']['DNNTrueClass'] == 0) & (data['1']['CCIsSS'] == 1)],
+                    'U', 'V', 'gamma events', folderRUNS + 'hist2d_SS_background.pdf')
+
+plot_scatter_hist2d(data['1']['DNNPredTrueClass'][(data['1']['DNNTrueClass'] == 1) & (data['1']['CCIsSS'] == 0)],
+                    data['2']['DNNPredTrueClass'][(data['2']['DNNTrueClass'] == 1) & (data['1']['CCIsSS'] == 0)],
+                    'U', 'V', '2beta events', folderRUNS + 'hist2d_MS_signal.pdf')
+
+plot_scatter_hist2d(data['1']['DNNPredTrueClass'][(data['1']['DNNTrueClass'] == 0) & (data['1']['CCIsSS'] == 0)],
+                    data['2']['DNNPredTrueClass'][(data['2']['DNNTrueClass'] == 0) & (data['1']['CCIsSS'] == 0)],
+                    'U', 'V', 'gamma events', folderRUNS + 'hist2d_MS_background.pdf')
+
 exit()
-
-
-
-# plot_scatter(data['1']['DNNPredTrueClass'][data['1']['DNNTrueClass'] == 1],
-#              data['2']['DNNPredTrueClass'][data['2']['DNNTrueClass'] == 1],
-#              'U', 'V', '2beta events', folderRUNS + 'scatter_signal.pdf')
-#
-# plot_scatter(data['1']['DNNPredTrueClass'][data['1']['DNNTrueClass'] == 0],
-#              data['2']['DNNPredTrueClass'][data['2']['DNNTrueClass'] == 0],
-#              'U', 'V', 'gamma events', folderRUNS + 'scatter_background.pdf')
-#
-# plot_scatter_hist2d(data['1']['DNNPredTrueClass'][data['1']['DNNTrueClass'] == 1],
-#                          data['2']['DNNPredTrueClass'][data['2']['DNNTrueClass'] == 1],
-#                          'U', 'V', '2beta events', folderRUNS + 'hist2d_signal.pdf')
-#
-# plot_scatter_hist2d(data['1']['DNNPredTrueClass'][data['1']['DNNTrueClass'] == 0],
-#                          data['2']['DNNPredTrueClass'][data['2']['DNNTrueClass'] == 0],
-#                          'U', 'V', 'gamma events', folderRUNS + 'hist2d_background.pdf')
-
 
 # plt.clf()
 # plt.step(bin_centres, hist_y_SS, where='mid', color='firebrick', label='gamma')
