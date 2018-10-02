@@ -26,12 +26,178 @@ def on_epoch_end_plots(folderOUT, epoch, data):
     plot_traininghistory(folderOUT)
     return
 
-
 def validation_mc_plots(args, folderOUT, data):
-    name_DNN = 'DNN'
-    name_EXO = 'EXO-Recon'
-    name_True = 'True'
-    peakpos = 2614.5
+
+    # kwargs = {
+    #     'range': (-0.6, 0.6),
+    #     'bins': 12,
+    #     'density': True
+    # }
+    #
+    # print data.keys()
+    #
+    # mask = (data['BDT-SS'] != -2.0)
+    #
+    # hist_bdt_ee_SS, bin_edges = np.histogram(data['BDT-SS'][mask & (data['DNNTrueClass'] == 1) & (data['CCIsSS'] == 1)], **kwargs)
+    # hist_bdt_y_SS, bin_edges = np.histogram(data['BDT-SS'][mask & (data['DNNTrueClass'] == 0) & (data['CCIsSS'] == 1)], **kwargs)
+    #
+    # bin_centres = (bin_edges[:-1] + bin_edges[1:]) / 2
+    #
+    # plt.clf()
+    # plt.step(bin_centres, hist_bdt_y_SS, where='mid', color='firebrick', label='BDT bkg')
+    # plt.step(bin_centres, hist_bdt_ee_SS, where='mid', color='blue', label='BDT sig')
+    # plt.xlabel('threshold')
+    # plt.title('SS-only')
+    # plt.legend(loc='best')
+    # plt.xlim([-0.6, 0.6])
+    # plt.ylim(ymin=0)
+    # plt.savefig(args.folderOUT + 'histogram_vs_threshold-BDT.pdf', bbox_inches='tight')
+    # plt.close()
+    #
+    # for key in ['BDT-SS', 'BDT-SS-NoStandoff', 'BDT-SS-V', 'BDT-SSMS']:
+    #     data[key] = (data[key]+1.0)/2.0
+    #
+    # mask = (data['BDT-SS'] != -0.5) & (data['BDT-SS-NoStandoff'] != -0.5) & (data['BDT-SS-V'] != -0.5)
+    #
+    # plot_scatter_hist2d(data['DNNPredTrueClass'][mask & (data['DNNTrueClass'] == 1) & (data['CCIsSS'] == 1)],
+    #                     data['BDT-SS'][mask & (data['DNNTrueClass'] == 1) & (data['CCIsSS'] == 1)],
+    #                     [0.0, 1.0], [0.30, 0.65], 'DNN', 'BDT', 'bb0n (SS-only)', args.folderOUT + 'hist2d_SS_signal.pdf')
+    #
+    # plot_scatter_hist2d(data['DNNPredTrueClass'][mask & (data['DNNTrueClass'] == 0) & (data['CCIsSS'] == 1)],
+    #                     data['BDT-SS'][mask & (data['DNNTrueClass'] == 0) & (data['CCIsSS'] == 1)],
+    #                     [0.0, 1.0], [0.30, 0.65], 'DNN', 'BDT', 'gamma (SS-only)', args.folderOUT + 'hist2d_SS_background.pdf')
+    #
+    # print max(data['BDT-SS'][mask & (data['DNNTrueClass'] == 1)]), min(
+    #     data['BDT-SS'][mask & (data['DNNTrueClass'] == 1)]), max(data['BDT-SS'][mask & (data['DNNTrueClass'] == 1)]) - min(
+    #     data['BDT-SS'][mask & (data['DNNTrueClass'] == 1)])
+    # print max(data['BDT-SS'][mask & (data['DNNTrueClass'] == 0)]), min(
+    #     data['BDT-SS'][mask & (data['DNNTrueClass'] == 0)]), max(data['BDT-SS'][mask & (data['DNNTrueClass'] == 0)]) - min(
+    #     data['BDT-SS'][mask & (data['DNNTrueClass'] == 0)])
+    #
+    #
+    # kwargs = {
+    #     'range': (0, 1),
+    #     'bins': 20,
+    #     'density': True
+    # }
+    #
+    #
+    # hist_bdt_ee_SS, bin_edges = np.histogram(data['BDT-SS'][mask & (data['DNNTrueClass'] == 1) & (data['CCIsSS'] == 1)], **kwargs)
+    # hist_bdt_y_SS, bin_edges = np.histogram(data['BDT-SS'][mask & (data['DNNTrueClass'] == 0) & (data['CCIsSS'] == 1)], **kwargs)
+    #
+    # # hist_ee, bin_edges = np.histogram(data['DNNPredTrueClass'][mask & (data['DNNTrueClass'] == 1)], **kwargs)
+    # # hist_y, bin_edges = np.histogram(data['DNNPredTrueClass'][mask & (data['DNNTrueClass'] == 0)], **kwargs)
+    #
+    # hist_ee_SS, bin_edges = np.histogram(data['DNNPredTrueClass'][mask & (data['DNNTrueClass'] == 1) & (data['CCIsSS'] == 1)], **kwargs)
+    # hist_y_SS, bin_edges = np.histogram(data['DNNPredTrueClass'][mask & (data['DNNTrueClass'] == 0) & (data['CCIsSS'] == 1)], **kwargs)
+    #
+    # # hist_ee_MS, bin_edges = np.histogram(
+    # #     data['DNNPredTrueClass'][(data['DNNTrueClass'] == 1) & (data['CCIsSS'] == 0)], **kwargs)
+    # # hist_y_MS, bin_edges = np.histogram(
+    # #     data['DNNPredTrueClass'][(data['DNNTrueClass'] == 0) & (data['CCIsSS'] == 0)], **kwargs)
+    #
+    # bin_centres = (bin_edges[:-1] + bin_edges[1:]) / 2
+    #
+    #
+    # plt.clf()
+    # plt.step(bin_centres, hist_bdt_y_SS, where='mid', color='firebrick', alpha=0.3, label='BDT bkg')
+    # plt.step(bin_centres, hist_bdt_ee_SS, where='mid', color='blue', alpha=0.3, label='BDT sig')
+    # plt.step(bin_centres, hist_y_SS, where='mid', color='firebrick', label='DNN bkg')
+    # plt.step(bin_centres, hist_ee_SS, where='mid', color='blue', label='DNN sig')
+    # plt.xlabel('threshold')
+    # plt.title('SS-only')
+    # plt.legend(loc='best')
+    # plt.xlim([0, 1])
+    # plt.ylim(ymin=0)
+    # plt.savefig(args.folderOUT + 'histogram_vs_threshold-BDT_SS.pdf', bbox_inches='tight')
+    # plt.close()
+    #
+    # exit()
+    #
+    # from sklearn.metrics import confusion_matrix, precision_score, recall_score, \
+    #     f1_score, accuracy_score, classification_report, precision_recall_curve, roc_curve, roc_auc_score
+    #
+    # mask = data['BDT-SSMS'] != -0.5
+    #
+    # roc_dnn = roc_curve(data['DNNTrueClass'][mask], data['DNNPredTrueClass'][mask])
+    # roc_auc_dnn = roc_auc_score(data['DNNTrueClass'][mask], data['DNNPredTrueClass'][mask])
+    #
+    # roc_bdt = roc_curve(data['DNNTrueClass'][mask], data['BDT-SSMS'][mask])
+    # roc_auc_bdt = roc_auc_score(data['DNNTrueClass'][mask], data['BDT-SSMS'][mask])
+    #
+    # plt.clf()
+    # plt.plot(roc_dnn[0], roc_dnn[1], label='DNN U (%.1f %%)' % (roc_auc_dnn*100.))
+    # plt.plot(roc_bdt[0], roc_bdt[1], label='BDT U (%.1f %%)' % (roc_auc_bdt*100.))
+    # plt.plot([0, 1], [0, 1], 'k--')
+    # plt.xlabel('False Positive Rate')
+    # plt.ylabel('True Positive Rate')
+    # plt.title('SS+MS')
+    # plt.legend(loc='lower right')
+    # plt.xlim([0, 1])
+    # plt.ylim([0, 1])
+    # plt.savefig(args.folderOUT + 'roc_bdt_SSMS_curve.pdf', bbox_inches='tight')
+    # plt.close()
+    #
+    # print '==================='
+    #
+    # mask = (data['BDT-SSMS'] != -0.5) & (data['CCIsSS'] == 0)
+    #
+    # roc_dnn = roc_curve(data['DNNTrueClass'][mask], data['DNNPredTrueClass'][mask])
+    # roc_auc_dnn = roc_auc_score(data['DNNTrueClass'][mask], data['DNNPredTrueClass'][mask])
+    #
+    # roc_bdt = roc_curve(data['DNNTrueClass'][mask], data['BDT-SSMS'][mask])
+    # roc_auc_bdt = roc_auc_score(data['DNNTrueClass'][mask], data['BDT-SSMS'][mask])
+    #
+    # plt.clf()
+    # plt.plot(roc_dnn[0], roc_dnn[1], label='DNN U (%.1f %%)' % (roc_auc_dnn*100.))
+    # plt.plot(roc_bdt[0], roc_bdt[1], label='BDT U (%.1f %%)' % (roc_auc_bdt*100.))
+    # plt.plot([0, 1], [0, 1], 'k--')
+    # plt.xlabel('False Positive Rate')
+    # plt.ylabel('True Positive Rate')
+    # plt.title('MS-only')
+    # plt.legend(loc='lower right')
+    # plt.xlim([0, 1])
+    # plt.ylim([0, 1])
+    # plt.savefig(args.folderOUT + 'roc_bdt_MS_curve.pdf', bbox_inches='tight')
+    # plt.close()
+    #
+    # print '==================='
+    #
+    # mask = (data['BDT-SS'] != -0.5) & (data['BDT-SS-NoStandoff'] != -0.5) & (data['BDT-SS-V'] != -0.5) & (data['CCIsSS'] == 1)
+    #
+    # roc_dnn = roc_curve(data['DNNTrueClass'][mask], data['DNNPredTrueClass'][mask])
+    # roc_auc_dnn = roc_auc_score(data['DNNTrueClass'][mask], data['DNNPredTrueClass'][mask])
+    #
+    # roc_bdt_ss = roc_curve(data['DNNTrueClass'][mask], data['BDT-SS'][mask])
+    # roc_auc_bdt_ss = roc_auc_score(data['DNNTrueClass'][mask], data['BDT-SS'][mask])
+    #
+    # roc_bdt_ss_nostand = roc_curve(data['DNNTrueClass'][mask], data['BDT-SS-NoStandoff'][mask])
+    # roc_auc_bdt_ss_nostand = roc_auc_score(data['DNNTrueClass'][mask], data['BDT-SS-NoStandoff'][mask])
+    #
+    # roc_bdt_ss_v = roc_curve(data['DNNTrueClass'][mask], data['BDT-SS-V'][mask])
+    # roc_auc_bdt_ss_v = roc_auc_score(data['DNNTrueClass'][mask], data['BDT-SS-V'][mask])
+    #
+    # plt.clf()
+    # plt.plot(roc_dnn[0], roc_dnn[1], label='DNN U (%.1f %%)' % (roc_auc_dnn * 100.))
+    # plt.plot(roc_bdt_ss[0], roc_bdt_ss[1], label='BDT U (%.1f %%)' % (roc_auc_bdt_ss * 100.))
+    # plt.plot(roc_bdt_ss_nostand[0], roc_bdt_ss_nostand[1], label='BDT U w/o Standoff (%.1f %%)' % (roc_auc_bdt_ss_nostand * 100.))
+    # plt.plot(roc_bdt_ss_v[0], roc_bdt_ss_v[1], label='BDT U w/ V (%.1f %%)' % (roc_auc_bdt_ss_v * 100.))
+    # plt.plot([0, 1], [0, 1], 'k--')
+    # plt.xlabel('False Positive Rate')
+    # plt.ylabel('True Positive Rate')
+    # plt.title('SS-only')
+    # plt.legend(loc='lower right')
+    # plt.xlim([0, 1])
+    # plt.ylim([0, 1])
+    # plt.savefig(args.folderOUT + 'roc_bdt_SS_curve.pdf', bbox_inches='tight')
+    # plt.close()
+    #
+    #
+    #
+    #
+    #
+    #
+    # exit()
 
     kwargs = {
         'range': (0, 1),
@@ -42,19 +208,13 @@ def validation_mc_plots(args, folderOUT, data):
     hist_ee, bin_edges = np.histogram(data['DNNPredTrueClass'][data['DNNTrueClass'] == 1], **kwargs)
     hist_y, bin_edges = np.histogram(data['DNNPredTrueClass'][data['DNNTrueClass'] == 0], **kwargs)
 
-    hist_ee_SS, bin_edges = np.histogram(
-        data['DNNPredTrueClass'][(data['DNNTrueClass'] == 1) & (data['CCIsSS'] == 1)], **kwargs)
-    hist_y_SS, bin_edges = np.histogram(
-        data['DNNPredTrueClass'][(data['DNNTrueClass'] == 0) & (data['CCIsSS'] == 1)], **kwargs)
+    hist_ee_SS, bin_edges = np.histogram(data['DNNPredTrueClass'][(data['DNNTrueClass'] == 1) & (data['CCIsSS'] == 1)], **kwargs)
+    hist_y_SS, bin_edges = np.histogram(data['DNNPredTrueClass'][(data['DNNTrueClass'] == 0) & (data['CCIsSS'] == 1)], **kwargs)
 
-    hist_ee_MS, bin_edges = np.histogram(
-        data['DNNPredTrueClass'][(data['DNNTrueClass'] == 1) & (data['CCIsSS'] == 0)], **kwargs)
-    hist_y_MS, bin_edges = np.histogram(
-        data['DNNPredTrueClass'][(data['DNNTrueClass'] == 0) & (data['CCIsSS'] == 0)], **kwargs)
+    hist_ee_MS, bin_edges = np.histogram(data['DNNPredTrueClass'][(data['DNNTrueClass'] == 1) & (data['CCIsSS'] == 0)], **kwargs)
+    hist_y_MS, bin_edges = np.histogram(data['DNNPredTrueClass'][(data['DNNTrueClass'] == 0) & (data['CCIsSS'] == 0)], **kwargs)
 
     bin_centres = (bin_edges[:-1] + bin_edges[1:]) / 2
-
-    # norm_ms = (data['CCIsSS'] == 1).sum()/float(len(data['CCIsSS']))
 
     plt.clf()
     plt.step(bin_centres, hist_y, where='mid', color='firebrick', label='gamma')
@@ -68,8 +228,6 @@ def validation_mc_plots(args, folderOUT, data):
     plt.ylim(ymin=0)
     plt.savefig(args.folderOUT + 'histogram_vs_threshold.pdf', bbox_inches='tight')
     plt.close()
-
-    print data.keys()
 
     plt.clf()
     plt.step(bin_centres, hist_y_SS, where='mid', color='firebrick', label='gamma')
@@ -92,6 +250,8 @@ def validation_mc_plots(args, folderOUT, data):
     plt.ylim(ymin=0)
     plt.savefig(args.folderOUT + 'histogram_MS_vs_threshold.pdf', bbox_inches='tight')
     plt.close()
+
+    exit()
 
     from sklearn.metrics import confusion_matrix, precision_score, recall_score, \
         f1_score, accuracy_score, classification_report, precision_recall_curve, roc_curve, roc_auc_score
@@ -183,6 +343,27 @@ def validation_mc_plots(args, folderOUT, data):
 # ----------------------------------------------------------
 # Plots
 # ----------------------------------------------------------
+# scatter 2D heatmap
+def plot_scatter_hist2d(E_x, E_y, range_x, range_y, name_x, name_y, name_title, fOUT):
+    # hist, xbins, ybins = np.histogram2d(E_x, E_y, range=[range_x,range_y], bins=50, normed=True )
+    # extent = [xbins.min(), xbins.max(), ybins.min(), ybins.max()]
+    extent = [range_x[0], range_x[1], range_y[0], range_y[1]]
+    gridsize = 100
+    # plt.plot([0,1], [0,1], 'k--')
+    plt.hexbin(E_x, E_y, extent=extent, gridsize=gridsize, mincnt=1, linewidths=0.1, cmap=plt.get_cmap('viridis'))  # norm=mpl.colors.LogNorm())
+
+#   (gs, int(gs / (range_x[1] - range_x[0]) / (range_y[1] - range_y[0])))
+    plt.title('%s' % (name_title))
+    plt.xlabel('%s' % (name_x))
+    plt.ylabel('%s' % (name_y))
+    plt.xlim(xmin=range_x[0], xmax=range_x[1])
+    plt.ylim(ymin=range_y[0], ymax=range_y[1])
+    plt.grid(True)
+    plt.savefig(fOUT, bbox_inches='tight')
+    plt.clf()
+    plt.close()
+    return
+
 # scatter
 def plot_scatter(E_x, E_y, name_x, name_y, fOUT):
     dE = E_x - E_y
@@ -194,27 +375,6 @@ def plot_scatter(E_x, E_y, name_x, name_y, fOUT):
     plt.ylabel('%s' % (name_y))
     # plt.xlim(xmin=600, xmax=3300)
     # plt.ylim(ymin=600, ymax=3300)
-    plt.grid(True)
-    plt.savefig(fOUT, bbox_inches='tight')
-    plt.clf()
-    plt.close()
-    return
-
-# scatter 2D heatmap
-def plot_scatter_hist2d(E_x, E_y, name_x, name_y, name_title, fOUT):
-    hist, xbins, ybins = np.histogram2d(E_x, E_y, range=[[0,3300],[0,3300]], bins=250, normed=True )
-    extent = [xbins.min(), xbins.max(), ybins.min(), ybins.max()]
-    aspect = (3300.0) / (3300.0)
-    # plt.plot((500, 3200), (500, 3200), 'k--')
-    im = plt.imshow(hist.T, extent=extent, interpolation='nearest', cmap=plt.get_cmap('viridis'), origin='lower',
-                    aspect=aspect, norm=mpl.colors.LogNorm())
-    #cbar = plt.colorbar(im, fraction=0.025, pad=0.04, ticks=mpl.ticker.LogLocator(subs=range(10)))
-    #cbar.set_label('Probability')
-    plt.title('%s' % (name_title))
-    plt.xlabel('%s Energy [keV]' % (name_x))
-    plt.ylabel('%s Energy [keV]' % (name_y))
-    plt.xlim(xmin=500, xmax=3300)
-    plt.ylim(ymin=500, ymax=3300)
     plt.grid(True)
     plt.savefig(fOUT, bbox_inches='tight')
     plt.clf()

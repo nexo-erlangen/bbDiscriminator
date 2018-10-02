@@ -66,7 +66,7 @@ def executeCNN(args, files, var_targets, nn_arch, batchsize, epoch, mode, n_gpu=
             raise ValueError('Currently, this is not implemented')
         elif nn_arch == 'Inception':
             if args.wires in ['U', 'V']:        model = create_shared_inception_network_2()
-            elif args.wires in ['UV', 'U+V']:   model = create_shared_inception_network_4()
+            elif args.wires in ['UV', 'U+V']:   model = create_shared_inception_network_2() # TODO create_shared_inception_network_4()
             else: raise ValueError('passed wire specifier need to be U/V/UV')
         elif nn_arch == 'Conv_LSTM':
             raise ValueError('Currently, this is not implemented')
@@ -84,6 +84,8 @@ def executeCNN(args, files, var_targets, nn_arch, batchsize, epoch, mode, n_gpu=
         except OSError:
             save_plot_model_script(folderOUT=args.folderOUT)
             print 'could not produce plot_model.png ---- run generate_model_plot on CPU'
+
+        # exit()
 
         adam = ks.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0)  # epsilon=1 for deep networks
         optimizer = adam  # Choose optimizer, only used if epoch == 0
@@ -107,12 +109,12 @@ def executeCNN(args, files, var_targets, nn_arch, batchsize, epoch, mode, n_gpu=
         model = fit_model(args, model, files, batchsize, var_targets, epoch, shuffle, n_events=None, tb_logger=tb_logger)
         model.save_weights(args.folderOUT + "models/weights_final.hdf5")
         model.save(args.folderOUT + "models/model_final.hdf5")
-    elif mode == 'mc':
-        print 'Validate on MC events'
+    elif mode in ['mc', 'data']:
+        print 'Validate on %s events'%(mode)
 
         args.sources = "".join(sorted(args.sources))
         args.position = "".join(sorted(args.position))
-        args.folderOUT += "0validation-mc/" + args.sources + "-" + args.position + "-" + str(args.num_weights) + "-" + args.wires + "/"
+        args.folderOUT += "0validation/" + args.sources + "-" + mode + "-" + args.position + "-" + str(args.num_weights) + "-" + args.wires + "/"
         os.system("mkdir -p -m 770 %s " % (args.folderOUT))
 
         # files = {'mixedUniMC': [
@@ -121,55 +123,18 @@ def executeCNN(args, files, var_targets, nn_arch, batchsize, epoch, mode, n_gpu=
         # print files
 
         EVENT_INFO = get_events(args=args, files=files, model=model,
-                          fOUT=(args.folderOUT + "events_" + str(args.num_weights) + "_" + args.sources + "-" + args.position + "-" + args.wires + ".p"))
+                          fOUT=(args.folderOUT + "events_" + str(args.num_weights) + "_" + args.sources + "-" + mode + "-" + args.position + "-" + args.wires + ".p"))
 
-        EVENT_INFO['DNNPredClass'] = EVENT_INFO['DNNPred'].argmax(axis=-1)
-        EVENT_INFO['DNNTrueClass'] = EVENT_INFO['DNNTrue'].argmax(axis=-1)
-        EVENT_INFO['DNNPredTrueClass'] = EVENT_INFO['DNNPred'][:, 1]
-
-        validation_mc_plots(args=args, folderOUT=args.folderOUT, data=EVENT_INFO)
-    elif mode == 'data':
-        print 'Validate on real data events'
-        raise ValueError('validation on real data not implemented')
-
-        # args.sources = "".join(sorted(args.sources))
-        # args.position = "".join(sorted(args.position))
-        #
-        # args.folderOUT += "0validation-data/" + str(args.num_weights) + '-' + args.sources + "-" + args.position + "/"
-        # os.system("mkdir -p -m 770 %s " % (args.folderOUT))
-        # data = get_events(args=args, files=files, model=model, fOUT=(
-        # args.folderOUT + "events_" + str(args.num_weights) + "_" + args.sources + "-" + args.position + ".p"))
-        #
-        # validation_data_plots(folderOUT=args.folderOUT, data=data, epoch=args.num_weights, sources=args.sources,
-        #                       position=args.position)
-
-
-
-        # raise ValueError('Check, if model mc evaluation is implemented yet')
-        # After training is finished, investigate model performance
-        # arr_energy_correct = make_performance_array_energy_correct(model, test_files[0][0], n_bins, class_type,
-        #                                                            batchsize, xs_mean, swap_4d_channels, str_ident,
-        #                                                            samples=None)
-        # np.save('results/plots/saved_predictions/arr_energy_correct_' + modelname + '.npy', arr_energy_correct)
-        #
-        # arr_energy_correct = np.load('results/plots/saved_predictions/arr_energy_correct_' + modelname + '.npy')
-        # # arr_energy_correct = np.load('results/plots/saved_predictions/backup/arr_energy_correct_model_VGG_4d_xyz-t-tight-1-w-geo-fix_and_yzt-x-tight-1-wout-geo-fix_and_4d_xyzt_muon-CC_to_elec-CC_double_input_single_train.npy')
-        # make_energy_to_accuracy_plot_multiple_classes(arr_energy_correct,
-        #                                               title='Classification for muon-CC_and_elec-CC_3-100GeV',
-        #                                               filename='results/plots/PT_' + modelname,
-        #                                               compare_pheid=True)  # TODO think about more automatic savenames
-        # make_prob_hists(arr_energy_correct[:, ], modelname=modelname, compare_pheid=True)
-        # make_property_to_accuracy_plot(arr_energy_correct, 'bjorken-y',
-        #                                title='Bjorken-y distribution vs Accuracy, 3-100GeV',
-        #                                filename='results/plots/PT_bjorken_y_vs_accuracy' + modelname, e_cut=False,
-        #                                compare_pheid=True)
-        #
-        # make_hist_2d_property_vs_property(arr_energy_correct, modelname,
-        #                                   property_types=('bjorken-y', 'probability'), e_cut=(3, 100),
-        #                                   compare_pheid=True)
-        # calculate_and_plot_correlation(arr_energy_correct, modelname, compare_pheid=True)
+        # EVENT_INFO['DNNPredClass'] = EVENT_INFO['DNNPred'].argmax(axis=-1)
+        # EVENT_INFO['DNNTrueClass'] = EVENT_INFO['DNNTrue'].argmax(axis=-1)
+        # EVENT_INFO['DNNPredTrueClass'] = EVENT_INFO['DNNPred'][:, 1]
+        if mode in 'mc':
+            validation_mc_plots(args=args, folderOUT=args.folderOUT, data=EVENT_INFO)
+        if mode in 'data':
+            # TODO need data specific plots?
+            validation_mc_plots(args=args, folderOUT=args.folderOUT, data=EVENT_INFO)
     else:
-        raise ValueError('chosen mode not available. Choose between train/eval')
+        raise ValueError('chosen mode (%s) not available. Choose between train/mc/data'%(mode))
 
 
 # ----------------------------------------------------------
@@ -263,7 +228,7 @@ def load_trained_model(args):
 def LRschedule_stepdecay(epoch):
     initial_lrate = 0.001
     drop = 0.5
-    epochs_drop = 5.0# 10.0 #5.0
+    epochs_drop = 10.0 # TODO Baseline is 5.0
     lrate = initial_lrate * np.power(drop, np.floor((1 + epoch) / epochs_drop))
     return lrate
 

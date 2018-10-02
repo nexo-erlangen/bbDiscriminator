@@ -35,12 +35,12 @@ def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f
 
     if wires == 'U':    wireindex = [0, 2]
     elif wires == 'V':  wireindex = [1, 3]
-    elif wires in ['UV', 'U+V']: pass #wireindex = [0, 1, 2, 3]
+    elif wires in ['UV', 'U+V']: wireindex= slice(4) #pass #wireindex = [0, 1, 2, 3]
     else: raise ValueError('passed wire specifier need to be U/V/UV')
 
     eventInfo = {}
     while 1:
-        # random.shuffle(files) #TODO no shuffling right now
+        random.shuffle(files) #TODO no shuffling right now
         for filename in files:
             f = h5py.File(str(filename), "r")
             if f_size is None: f_size = getNumEvents(filename)
@@ -48,7 +48,7 @@ def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f
                 #     'is not equal to the f_size of the true .h5 file. Should be ok if you use the tb_callback.')
 
             lst = np.arange(0, f_size, batchsize)
-            # random.shuffle(lst) #TODO no shuffling right now
+            random.shuffle(lst) #TODO no shuffling right now
 
             # filter the labels we don't want for now
             for key in f.keys():
@@ -59,15 +59,22 @@ def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f
 
             for i in lst:
                 if not yield_mc_info == 2:
-                    if wires in ['U', 'V']:      xs_i = f['wfs'][i: i + batchsize, wireindex]
-                    elif wires in ['UV', 'U+V']: xs_i = f['wfs'][i: i + batchsize]      #TODO Optimize via wireindex
+                    if wires in ['U', 'V', 'UV', 'U+V']:      xs_i = f['wfs'][i: i + batchsize, wireindex]
                     else: raise ValueError('passed wire specifier need to be U/V/UV')
                     xs_i = np.swapaxes(xs_i, 0, 1)
                     xs_i = np.swapaxes(xs_i, 2, 3)
-                    ys_i = ys[ i : i + batchsize ]
-                    # xs_i[[0, 1]] = xs_i[[1, 0]]
-                    # xs_i[[2, 3]] = xs_i[[3, 2]]
 
+                    # print xs_i.shape
+                    # xs_i = np.reshape(xs_i, (batchsize, 38, 350, -1))
+                    # xs_i = np.swapaxes(xs_i, 1, 2)
+                    # xs_i = np.squeeze(xs_i)
+                    # print xs_i.shape
+                    # exit()
+
+                    ys_i = ys[ i : i + batchsize ]
+
+                # if yield_mc_info == 0: yield (xs_i, ys_i)
+                # elif yield_mc_info == 1: yield (xs_i, ys_i) + ({key: eventInfo[key][i: i + batchsize] for key in eventInfo.keys()},)
                 if   yield_mc_info == 0:    yield (list(xs_i), ys_i)
                 elif yield_mc_info == 1:    yield (list(xs_i), ys_i) + ({ key: eventInfo[key][i: i + batchsize] for key in eventInfo.keys() },)
                 elif yield_mc_info == 2:    yield { key: eventInfo[key][i: i + batchsize] for key in eventInfo.keys() }

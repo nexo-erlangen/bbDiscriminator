@@ -116,30 +116,61 @@ def create_shared_inception_network_2():
     layers.append([MaxPooling2D((4, 2))])
     layers.append(Conv_block(64, filter_size=(3, 3), **kwargs))
 
-    num_filters = (64, (96, 128), (16, 32), 32) #TODO Real values from IncV1 Paper?
-    num_filters_deep = (96, (96, 192), (64, 96), 96)
+    num_filters = (64, (96, 128), (16, 32), 32)  # TODO Real values from IncV1 Paper?
     layers.append(InceptionV1_block(num_filters=num_filters))
     layers.append(InceptionV1_block(num_filters=num_filters))
-    layers.append([MaxPooling2D((2, 2))]) # TODO Test Inception module with stride=2 instead of max pooling
+    layers.append([MaxPooling2D((2, 2))])  # TODO Test Inception module with stride=2 instead of max pooling
     layers.append(InceptionV1_block(num_filters=num_filters))
     layers.append(InceptionV1_block(num_filters=num_filters))
     layers.append([MaxPooling2D((2, 1))])
     layers.append(InceptionV1_block(num_filters=num_filters))
     layers.append(InceptionV1_block(num_filters=num_filters))
-    # layers.append([MaxPooling2D((2, 1))])
-    # layers.append(InceptionV1_block(num_filters=num_filters))
-    # layers.append(InceptionV1_block(num_filters=num_filters))
-    # layers.append(InceptionV1_block(num_filters=num_filters_deep))
-    # layers.append(InceptionV1_block(num_filters=num_filters_deep))
-
     layers.append([GlobalAveragePooling2D()])
 
     paths = assemble_network(input, layers)
 
+    # merge = paths[0]
     merge = Concatenate(name='Flat_1_and_2')(paths)
     output = Dense(2, name='Output', activation='softmax', kernel_initializer="glorot_uniform")(merge)
-
     return Model(inputs=input, outputs=output)
+
+
+    #TODO Baseline below
+
+    # input = []
+    # input.append(Input(shape=(350, 38, 1), name='Wire_1'))
+    # input.append(Input(shape=(350, 38, 1), name='Wire_2'))
+    #
+    # layers = []
+    # layers.append(Conv_block(32, filter_size=(3, 3), **kwargs))
+    # layers.append(Conv_block(32, filter_size=(3, 3), **kwargs))
+    # layers.append([MaxPooling2D((4, 2))])
+    # layers.append(Conv_block(64, filter_size=(3, 3), **kwargs))
+    #
+    # num_filters = (64, (96, 128), (16, 32), 32) #TODO Real values from IncV1 Paper?
+    # num_filters_deep = (96, (96, 192), (64, 96), 96)
+    # layers.append(InceptionV1_block(num_filters=num_filters))
+    # layers.append(InceptionV1_block(num_filters=num_filters))
+    # layers.append([MaxPooling2D((2, 2))]) # TODO Test Inception module with stride=2 instead of max pooling
+    # layers.append(InceptionV1_block(num_filters=num_filters))
+    # layers.append(InceptionV1_block(num_filters=num_filters))
+    # layers.append([MaxPooling2D((2, 1))])
+    # layers.append(InceptionV1_block(num_filters=num_filters))
+    # layers.append(InceptionV1_block(num_filters=num_filters))
+    # # layers.append([MaxPooling2D((2, 1))])
+    # # layers.append(InceptionV1_block(num_filters=num_filters))
+    # # layers.append(InceptionV1_block(num_filters=num_filters))
+    # # layers.append(InceptionV1_block(num_filters=num_filters_deep))
+    # # layers.append(InceptionV1_block(num_filters=num_filters_deep))
+    #
+    # layers.append([GlobalAveragePooling2D()])
+    #
+    # paths = assemble_network(input, layers)
+    #
+    # merge = Concatenate(name='Flat_1_and_2')(paths)
+    # output = Dense(2, name='Output', activation='softmax', kernel_initializer="glorot_uniform")(merge)
+    #
+    # return Model(inputs=input, outputs=output)
 
 def create_shared_inception_network_4():
     kwargs = {'padding': 'same',

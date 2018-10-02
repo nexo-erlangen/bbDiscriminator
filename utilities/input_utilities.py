@@ -113,6 +113,11 @@ def parseInput():
     print 'Number of Epoch:\t', args.num_epoch
     print 'BatchSize:\t\t', args.batchsize, '\n'
 
+    with open(args.folderOUT + 'log.txt', 'w') as f_out:
+        args_dict = vars(args)
+        for key in args_dict.keys():
+            f_out.write(str(key) + '\t' + str(args_dict[key]) + '\n')
+
     return args
 
 def splitFiles(args, mode, frac_train, frac_val):
@@ -186,3 +191,4 @@ def adjustPermissions(path):
             except OSError:
                 # TODO could copy and replace non-changeable files and apply chmod on new files
                 pass
+
