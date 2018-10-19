@@ -4,266 +4,208 @@ import numpy as np
 import matplotlib as mpl
 mpl.use('PDF')
 import matplotlib.pyplot as plt
-import matplotlib.mlab as mlab
-import os
+from matplotlib import gridspec
 from sys import path
 path.append('/home/hpc/capm/sn0515/bbDiscriminator')
 from plot_scripts.plot_traininghistory import *
-from math import atan2,degrees
+BIGGER_SIZE = 13
+plt.rc('font', size=BIGGER_SIZE)          # controls default text sizes
 
 # ----------------------------------------------------------
 # Plots
 # ----------------------------------------------------------
-def on_epoch_end_plots(folderOUT, epoch, data):
-    # for i in xrange(200):
-    #     print data['Y_TRUE'][i,1], data['Y_PRED'][i,1], data['Y_TRUE'][i,2], data['Y_PRED'][i,2]
-    plot_scatter(data['Y_TRUE'][:,0], data['Y_PRED'][:,0], 'True Energy [keV]', 'DNN Energy [keV]', folderOUT+'prediction_energy_'+str(epoch)+'.png')
-    plot_scatter(data['Y_TRUE'][:,1], data['Y_PRED'][:,1], 'True X [mm]', 'DNN X [mm]', folderOUT + 'prediction_X_'+str(epoch)+'.png')
-    plot_scatter(data['Y_TRUE'][:,2], data['Y_PRED'][:,2], 'True Y [mm]', 'DNN Y [mm]', folderOUT + 'prediction_Y_'+str(epoch)+'.png')
-    plot_scatter(data['Y_TRUE'][:,3], data['Y_PRED'][:,3], 'True Time [mu sec]', 'DNN Time [mu sec]', folderOUT + 'prediction_time_'+str(epoch)+'.png')
-    plot_scatter(fromTimeToZ(data['Y_TRUE'][:, 3]), fromTimeToZ(data['Y_PRED'][:, 3]), 'True Z [mm]', 'DNN Z [mm]',
-                 folderOUT + 'prediction_Z_' + str(epoch) + '.png')
-    plot_traininghistory(folderOUT)
-    return
-
 def validation_mc_plots(args, folderOUT, data):
 
-    # kwargs = {
-    #     'range': (-0.6, 0.6),
-    #     'bins': 12,
-    #     'density': True
-    # }
+    maskSS = (data['BDT-SS-Std'] != -2.0) & \
+             (data['BDT-SS-Uni'] != -2.0) & \
+             (data['CCIsSS'] == 1)
+    maskMS = np.invert(maskSS)
+
+    maskROI = (np.sum(data['CCPurityCorrectedEnergy'], axis=1) > 2400.) & \
+              (np.sum(data['CCPurityCorrectedEnergy'], axis=1) < 2800.)
+
+    maskBKG = (data['DNNTrueClass'] == 0)
+    maskSIG = (data['DNNTrueClass'] == 1)
+
+    plot_energy_spectrum(fOUT=args.folderOUT + 'energy_spectrum_ROI.pdf',
+                         data=[(np.sum(data['CCPurityCorrectedEnergy'], axis=1)[maskROI & maskSS & maskBKG]),
+                               (np.sum(data['CCPurityCorrectedEnergy'], axis=1)[maskROI & maskSS & maskSIG])],
+                         label=['U238+Th232', 'bb0n'])
+
+    plot_energy_spectrum(fOUT=args.folderOUT + 'energy_spectrum_MC_ROI.pdf',
+                         data=[data['MCEnergy'][maskROI & maskSS & maskBKG],
+                               data['MCEnergy'][maskROI & maskSS & maskSIG]],
+                         label=['U238+Th232', 'bb0n'])
+
+    plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve_ROI.pdf',
+                   dataTrue=data['DNNTrueClass'][maskROI & maskSS],
+                   dataPred=[data['DNNPredTrueClass'][maskROI & maskSS],
+                             data['BDT-SS-Uni'][maskROI & maskSS],
+                             data['BDT-SS-Std'][maskROI & maskSS],
+                             -1.0 * np.sqrt(data['MCEventSizeR']**2+data['MCEventSizeZ']**2)[maskROI & maskSS]],
+                   label=['DNN', 'BDT-Uni', 'BDT-Std', 'MC 3D Size'])
+
+    plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve_MS_ROI.pdf',
+                   dataTrue=data['DNNTrueClass'][maskROI & maskMS],
+                   dataPred=[data['DNNPredTrueClass'][maskROI & maskMS],
+                             -1.0 * np.sqrt(data['MCEventSizeR'] ** 2 + data['MCEventSizeZ'] ** 2)[maskROI & maskMS]],
+                   label=['DNN', 'MC R Size'])
+
+    plot_prec_vs_recall_curve(fOUT=args.folderOUT + 'precision_vs_recall_ROI.pdf',
+                              dataTrue=data['DNNTrueClass'][maskROI & maskSS],
+                              dataPred=[data['DNNPredTrueClass'][maskROI & maskSS],
+                                        norm_discriminator(data['BDT-SS-Uni'][maskROI & maskSS]),
+                                        norm_discriminator(data['BDT-SS-Std'][maskROI & maskSS])],
+                              label=['DNN', 'BDT-Uni', 'BDT-Std'])
+
+    plot_prec_vs_recall_curve(fOUT=args.folderOUT + 'precision_vs_recall_MS_ROI.pdf',
+                              dataTrue=data['DNNTrueClass'][maskROI & maskMS],
+                              dataPred=[data['DNNPredTrueClass'][maskROI & maskMS],
+                                        -1.0 * np.sqrt(data['MCEventSizeR'] ** 2 + data['MCEventSizeZ'] ** 2)[maskROI & maskMS]],
+                              label=['DNN', 'MC Size (R)'])
+
+    plot_prec_recall_vs_thresh_curve(fOUT=args.folderOUT + 'precision_recall_vs_threshold_ROI.pdf',
+                                     dataTrue=data['DNNTrueClass'][maskROI & maskSS],
+                                     dataPred=[data['DNNPredTrueClass'][maskROI & maskSS],
+                                               norm_discriminator(data['BDT-SS-Uni'][maskROI & maskSS]),
+                                               norm_discriminator(data['BDT-SS-Std'][maskROI & maskSS])],
+                                     label=['DNN', 'BDT-Uni', 'BDT-Std'])
+
+    # TODO BELOW IS TEST
+
+    # threshold values for 90% signal efficiency
+
+    bdt_ss_std = get_thresh_at_sig_eff_or_at_bkg_rej(data['DNNTrueClass'][maskROI & maskSS],
+                                                     data['BDT-SS-Std'][maskROI & maskSS],
+                                                     cut_value=0.9, mode='sig_eff')
+    bdt_ss_uni = get_thresh_at_sig_eff_or_at_bkg_rej(data['DNNTrueClass'][maskROI & maskSS],
+                                                     data['BDT-SS-Uni'][maskROI & maskSS],
+                                                     cut_value=0.9, mode='sig_eff')
+    dnn_ss_uni = get_thresh_at_sig_eff_or_at_bkg_rej(data['DNNTrueClass'][maskROI & maskSS],
+                                                     data['DNNPredTrueClass'][maskROI & maskSS],
+                                                     cut_value=0.9, mode='sig_eff')
+
+    # plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventSize_BDT_Std_3D-90Sig.pdf',
+    #                          data=np.sqrt(data['MCEventSizeR'] ** 2 + data['MCEventSizeZ'] ** 2)[maskROI & maskSS],
+    #                          discr_mask=data['BDT-SS-Std'][maskROI & maskSS],
+    #                          sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=bdt_ss_std,
+    #                          discr_range=[0, 20], discr_label='BDT', data_label='True Event Size [mm]')
     #
-    # print data.keys()
+    # plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventSize_BDT_Uni_3D-90Sig.pdf',
+    #                          data=np.sqrt(data['MCEventSizeR'] ** 2 + data['MCEventSizeZ'] ** 2)[maskROI & maskSS],
+    #                          discr_mask=data['BDT-SS-Uni'][maskROI & maskSS],
+    #                          sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=bdt_ss_uni,
+    #                          discr_range=[0, 20], discr_label='BDT', data_label='True Event Size [mm]')
     #
-    # mask = (data['BDT-SS'] != -2.0)
+    # plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventSize_DNN_3D-90Sig.pdf',
+    #                          data=np.sqrt(data['MCEventSizeR']**2+data['MCEventSizeZ']**2)[maskROI & maskSS],
+    #                          discr_mask=data['DNNPredTrueClass'][maskROI & maskSS],
+    #                          sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=dnn_ss_uni,
+    #                          discr_range=[0, 20], discr_label='DNN', data_label='True Event Size [mm]')
     #
-    # hist_bdt_ee_SS, bin_edges = np.histogram(data['BDT-SS'][mask & (data['DNNTrueClass'] == 1) & (data['CCIsSS'] == 1)], **kwargs)
-    # hist_bdt_y_SS, bin_edges = np.histogram(data['BDT-SS'][mask & (data['DNNTrueClass'] == 0) & (data['CCIsSS'] == 1)], **kwargs)
+    # plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_BDT_Std_R-90Sig.pdf',
+    #                          data=np.sqrt(data['MCPosX'] ** 2 + data['MCPosY'] ** 2)[maskROI & maskSS],
+    #                          discr_mask=data['BDT-SS-Std'][maskROI & maskSS],
+    #                          sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=bdt_ss_std,
+    #                          discr_range=[0, 180], discr_label='BDT', data_label='True Event Position R [mm]')
     #
-    # bin_centres = (bin_edges[:-1] + bin_edges[1:]) / 2
+    # plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_BDT_Uni_R-90Sig.pdf',
+    #                          data=np.sqrt(data['MCPosX'] ** 2 + data['MCPosY'] ** 2)[maskROI & maskSS],
+    #                          discr_mask=data['BDT-SS-Uni'][maskROI & maskSS],
+    #                          sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=bdt_ss_uni,
+    #                          discr_range=[0, 180], discr_label='BDT', data_label='True Event Position R [mm]')
     #
-    # plt.clf()
-    # plt.step(bin_centres, hist_bdt_y_SS, where='mid', color='firebrick', label='BDT bkg')
-    # plt.step(bin_centres, hist_bdt_ee_SS, where='mid', color='blue', label='BDT sig')
-    # plt.xlabel('threshold')
-    # plt.title('SS-only')
-    # plt.legend(loc='best')
-    # plt.xlim([-0.6, 0.6])
-    # plt.ylim(ymin=0)
-    # plt.savefig(args.folderOUT + 'histogram_vs_threshold-BDT.pdf', bbox_inches='tight')
-    # plt.close()
+    # plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_DNN_R-90Sig.pdf',
+    #                          data=np.sqrt(data['MCPosX'] ** 2 + data['MCPosY'] ** 2)[maskROI & maskSS],
+    #                          discr_mask=data['DNNPredTrueClass'][maskROI & maskSS],
+    #                          sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=dnn_ss_uni,
+    #                          discr_range=[0, 180], discr_label='DNN', data_label='True Event Position R [mm]')
     #
-    # for key in ['BDT-SS', 'BDT-SS-NoStandoff', 'BDT-SS-V', 'BDT-SSMS']:
-    #     data[key] = (data[key]+1.0)/2.0
+    # plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_BDT_Std_Z-90Sig.pdf',
+    #                          data=data['MCPosZ'][maskROI & maskSS],
+    #                          discr_mask=data['BDT-SS-Std'][maskROI & maskSS],
+    #                          sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=bdt_ss_std,
+    #                          discr_range=[-180, 180], discr_label='BDT', data_label='True Event Position Z [mm]')
     #
-    # mask = (data['BDT-SS'] != -0.5) & (data['BDT-SS-NoStandoff'] != -0.5) & (data['BDT-SS-V'] != -0.5)
+    # plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_BDT_Uni_Z-90Sig.pdf',
+    #                          data=data['MCPosZ'][maskROI & maskSS],
+    #                          discr_mask=data['BDT-SS-Uni'][maskROI & maskSS],
+    #                          sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=bdt_ss_uni,
+    #                          discr_range=[-180, 180], discr_label='BDT', data_label='True Event Position Z [mm]')
     #
-    # plot_scatter_hist2d(data['DNNPredTrueClass'][mask & (data['DNNTrueClass'] == 1) & (data['CCIsSS'] == 1)],
-    #                     data['BDT-SS'][mask & (data['DNNTrueClass'] == 1) & (data['CCIsSS'] == 1)],
-    #                     [0.0, 1.0], [0.30, 0.65], 'DNN', 'BDT', 'bb0n (SS-only)', args.folderOUT + 'hist2d_SS_signal.pdf')
-    #
-    # plot_scatter_hist2d(data['DNNPredTrueClass'][mask & (data['DNNTrueClass'] == 0) & (data['CCIsSS'] == 1)],
-    #                     data['BDT-SS'][mask & (data['DNNTrueClass'] == 0) & (data['CCIsSS'] == 1)],
-    #                     [0.0, 1.0], [0.30, 0.65], 'DNN', 'BDT', 'gamma (SS-only)', args.folderOUT + 'hist2d_SS_background.pdf')
-    #
-    # print max(data['BDT-SS'][mask & (data['DNNTrueClass'] == 1)]), min(
-    #     data['BDT-SS'][mask & (data['DNNTrueClass'] == 1)]), max(data['BDT-SS'][mask & (data['DNNTrueClass'] == 1)]) - min(
-    #     data['BDT-SS'][mask & (data['DNNTrueClass'] == 1)])
-    # print max(data['BDT-SS'][mask & (data['DNNTrueClass'] == 0)]), min(
-    #     data['BDT-SS'][mask & (data['DNNTrueClass'] == 0)]), max(data['BDT-SS'][mask & (data['DNNTrueClass'] == 0)]) - min(
-    #     data['BDT-SS'][mask & (data['DNNTrueClass'] == 0)])
-    #
-    #
-    # kwargs = {
-    #     'range': (0, 1),
-    #     'bins': 20,
-    #     'density': True
-    # }
-    #
-    #
-    # hist_bdt_ee_SS, bin_edges = np.histogram(data['BDT-SS'][mask & (data['DNNTrueClass'] == 1) & (data['CCIsSS'] == 1)], **kwargs)
-    # hist_bdt_y_SS, bin_edges = np.histogram(data['BDT-SS'][mask & (data['DNNTrueClass'] == 0) & (data['CCIsSS'] == 1)], **kwargs)
-    #
-    # # hist_ee, bin_edges = np.histogram(data['DNNPredTrueClass'][mask & (data['DNNTrueClass'] == 1)], **kwargs)
-    # # hist_y, bin_edges = np.histogram(data['DNNPredTrueClass'][mask & (data['DNNTrueClass'] == 0)], **kwargs)
-    #
-    # hist_ee_SS, bin_edges = np.histogram(data['DNNPredTrueClass'][mask & (data['DNNTrueClass'] == 1) & (data['CCIsSS'] == 1)], **kwargs)
-    # hist_y_SS, bin_edges = np.histogram(data['DNNPredTrueClass'][mask & (data['DNNTrueClass'] == 0) & (data['CCIsSS'] == 1)], **kwargs)
-    #
-    # # hist_ee_MS, bin_edges = np.histogram(
-    # #     data['DNNPredTrueClass'][(data['DNNTrueClass'] == 1) & (data['CCIsSS'] == 0)], **kwargs)
-    # # hist_y_MS, bin_edges = np.histogram(
-    # #     data['DNNPredTrueClass'][(data['DNNTrueClass'] == 0) & (data['CCIsSS'] == 0)], **kwargs)
-    #
-    # bin_centres = (bin_edges[:-1] + bin_edges[1:]) / 2
-    #
-    #
-    # plt.clf()
-    # plt.step(bin_centres, hist_bdt_y_SS, where='mid', color='firebrick', alpha=0.3, label='BDT bkg')
-    # plt.step(bin_centres, hist_bdt_ee_SS, where='mid', color='blue', alpha=0.3, label='BDT sig')
-    # plt.step(bin_centres, hist_y_SS, where='mid', color='firebrick', label='DNN bkg')
-    # plt.step(bin_centres, hist_ee_SS, where='mid', color='blue', label='DNN sig')
-    # plt.xlabel('threshold')
-    # plt.title('SS-only')
-    # plt.legend(loc='best')
-    # plt.xlim([0, 1])
-    # plt.ylim(ymin=0)
-    # plt.savefig(args.folderOUT + 'histogram_vs_threshold-BDT_SS.pdf', bbox_inches='tight')
-    # plt.close()
-    #
+    # plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_DNN_Z-90Sig.pdf',
+    #                          data=(np.sum(data['CCPurityCorrectedEnergy'], axis=1))[maskROI & maskSS],
+    #                          discr_mask=data['DNNPredTrueClass'][maskROI & maskSS],
+    #                          sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=dnn_ss_uni,
+    #                          discr_range=[-180, 180], discr_label='DNN', data_label='True Event Position Z [mm]')
+
+    plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventEnergy_BDT_Std-90Sig.pdf',
+                             data=(np.sum(data['CCCorrectedEnergy'], axis=1))[maskROI & maskSS],
+                             discr_mask=data['BDT-SS-Std'][maskROI & maskSS],
+                             sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=bdt_ss_std,
+                             discr_range=[2400, 2800], discr_label='BDT', data_label='uncalibrated corrected energy [keV]')
+
+    plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventEnergy_BDT_Uni-90Sig.pdf',
+                             data=(np.sum(data['CCCorrectedEnergy'], axis=1))[maskROI & maskSS],
+                             discr_mask=data['BDT-SS-Uni'][maskROI & maskSS],
+                             sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=bdt_ss_uni,
+                             discr_range=[2400, 2800], discr_label='BDT', data_label='uncalibrated corrected energy [keV]')
+
+    plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventEnergy_DNN-90Sig.pdf',
+                             data=(np.sum(data['CCCorrectedEnergy'], axis=1))[maskROI & maskSS],
+                             discr_mask=data['DNNPredTrueClass'][maskROI & maskSS],
+                             sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=dnn_ss_uni,
+                             discr_range=[2400, 2800], discr_label='DNN', data_label='uncalibrated corrected energy [keV]')
+
+
+
+    plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_vs_threshold.pdf',
+                                data=[data['DNNPredTrueClass'][maskBKG],
+                                      data['DNNPredTrueClass'][maskSIG]],
+                                label=['Background', 'Signal'])
+
+    plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_SS_vs_threshold.pdf',
+                                data=[data['DNNPredTrueClass'][maskBKG & maskSS],
+                                      data['DNNPredTrueClass'][maskSIG & maskSS]],
+                                label=['Background', 'Signal'])
+
+    plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_MS_vs_threshold.pdf',
+                                data=[data['DNNPredTrueClass'][maskBKG & maskMS],
+                                      data['DNNPredTrueClass'][maskSIG & maskMS]],
+                                label=['Background', 'Signal'])
+
+    plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_vs_threshold-ROI.pdf',
+                                data=[data['DNNPredTrueClass'][maskBKG & maskROI],
+                                      data['DNNPredTrueClass'][maskSIG]],
+                                label=['Background', 'Signal'])
+
+    plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_SS_vs_threshold-ROI.pdf',
+                                data=[data['DNNPredTrueClass'][maskBKG & maskROI & maskSS],
+                                      data['DNNPredTrueClass'][maskSIG & maskROI & maskSS]],
+                                label=['Background', 'Signal'])
+
+    plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_MS_vs_threshold-ROI.pdf',
+                                data=[data['DNNPredTrueClass'][maskBKG & maskROI & maskMS],
+                                      data['DNNPredTrueClass'][maskSIG & maskROI & maskMS]],
+                                label=['Background', 'Signal'])
+
+
     # exit()
-    #
-    # from sklearn.metrics import confusion_matrix, precision_score, recall_score, \
-    #     f1_score, accuracy_score, classification_report, precision_recall_curve, roc_curve, roc_auc_score
-    #
-    # mask = data['BDT-SSMS'] != -0.5
-    #
-    # roc_dnn = roc_curve(data['DNNTrueClass'][mask], data['DNNPredTrueClass'][mask])
-    # roc_auc_dnn = roc_auc_score(data['DNNTrueClass'][mask], data['DNNPredTrueClass'][mask])
-    #
-    # roc_bdt = roc_curve(data['DNNTrueClass'][mask], data['BDT-SSMS'][mask])
-    # roc_auc_bdt = roc_auc_score(data['DNNTrueClass'][mask], data['BDT-SSMS'][mask])
-    #
-    # plt.clf()
-    # plt.plot(roc_dnn[0], roc_dnn[1], label='DNN U (%.1f %%)' % (roc_auc_dnn*100.))
-    # plt.plot(roc_bdt[0], roc_bdt[1], label='BDT U (%.1f %%)' % (roc_auc_bdt*100.))
-    # plt.plot([0, 1], [0, 1], 'k--')
-    # plt.xlabel('False Positive Rate')
-    # plt.ylabel('True Positive Rate')
-    # plt.title('SS+MS')
-    # plt.legend(loc='lower right')
-    # plt.xlim([0, 1])
-    # plt.ylim([0, 1])
-    # plt.savefig(args.folderOUT + 'roc_bdt_SSMS_curve.pdf', bbox_inches='tight')
-    # plt.close()
-    #
-    # print '==================='
-    #
-    # mask = (data['BDT-SSMS'] != -0.5) & (data['CCIsSS'] == 0)
-    #
-    # roc_dnn = roc_curve(data['DNNTrueClass'][mask], data['DNNPredTrueClass'][mask])
-    # roc_auc_dnn = roc_auc_score(data['DNNTrueClass'][mask], data['DNNPredTrueClass'][mask])
-    #
-    # roc_bdt = roc_curve(data['DNNTrueClass'][mask], data['BDT-SSMS'][mask])
-    # roc_auc_bdt = roc_auc_score(data['DNNTrueClass'][mask], data['BDT-SSMS'][mask])
-    #
-    # plt.clf()
-    # plt.plot(roc_dnn[0], roc_dnn[1], label='DNN U (%.1f %%)' % (roc_auc_dnn*100.))
-    # plt.plot(roc_bdt[0], roc_bdt[1], label='BDT U (%.1f %%)' % (roc_auc_bdt*100.))
-    # plt.plot([0, 1], [0, 1], 'k--')
-    # plt.xlabel('False Positive Rate')
-    # plt.ylabel('True Positive Rate')
-    # plt.title('MS-only')
-    # plt.legend(loc='lower right')
-    # plt.xlim([0, 1])
-    # plt.ylim([0, 1])
-    # plt.savefig(args.folderOUT + 'roc_bdt_MS_curve.pdf', bbox_inches='tight')
-    # plt.close()
-    #
-    # print '==================='
-    #
-    # mask = (data['BDT-SS'] != -0.5) & (data['BDT-SS-NoStandoff'] != -0.5) & (data['BDT-SS-V'] != -0.5) & (data['CCIsSS'] == 1)
-    #
-    # roc_dnn = roc_curve(data['DNNTrueClass'][mask], data['DNNPredTrueClass'][mask])
-    # roc_auc_dnn = roc_auc_score(data['DNNTrueClass'][mask], data['DNNPredTrueClass'][mask])
-    #
-    # roc_bdt_ss = roc_curve(data['DNNTrueClass'][mask], data['BDT-SS'][mask])
-    # roc_auc_bdt_ss = roc_auc_score(data['DNNTrueClass'][mask], data['BDT-SS'][mask])
-    #
-    # roc_bdt_ss_nostand = roc_curve(data['DNNTrueClass'][mask], data['BDT-SS-NoStandoff'][mask])
-    # roc_auc_bdt_ss_nostand = roc_auc_score(data['DNNTrueClass'][mask], data['BDT-SS-NoStandoff'][mask])
-    #
-    # roc_bdt_ss_v = roc_curve(data['DNNTrueClass'][mask], data['BDT-SS-V'][mask])
-    # roc_auc_bdt_ss_v = roc_auc_score(data['DNNTrueClass'][mask], data['BDT-SS-V'][mask])
-    #
-    # plt.clf()
-    # plt.plot(roc_dnn[0], roc_dnn[1], label='DNN U (%.1f %%)' % (roc_auc_dnn * 100.))
-    # plt.plot(roc_bdt_ss[0], roc_bdt_ss[1], label='BDT U (%.1f %%)' % (roc_auc_bdt_ss * 100.))
-    # plt.plot(roc_bdt_ss_nostand[0], roc_bdt_ss_nostand[1], label='BDT U w/o Standoff (%.1f %%)' % (roc_auc_bdt_ss_nostand * 100.))
-    # plt.plot(roc_bdt_ss_v[0], roc_bdt_ss_v[1], label='BDT U w/ V (%.1f %%)' % (roc_auc_bdt_ss_v * 100.))
-    # plt.plot([0, 1], [0, 1], 'k--')
-    # plt.xlabel('False Positive Rate')
-    # plt.ylabel('True Positive Rate')
-    # plt.title('SS-only')
-    # plt.legend(loc='lower right')
-    # plt.xlim([0, 1])
-    # plt.ylim([0, 1])
-    # plt.savefig(args.folderOUT + 'roc_bdt_SS_curve.pdf', bbox_inches='tight')
-    # plt.close()
-    #
-    #
-    #
-    #
-    #
-    #
-    # exit()
-
-    kwargs = {
-        'range': (0, 1),
-        'bins': 100,
-        'density': True
-    }
-
-    hist_ee, bin_edges = np.histogram(data['DNNPredTrueClass'][data['DNNTrueClass'] == 1], **kwargs)
-    hist_y, bin_edges = np.histogram(data['DNNPredTrueClass'][data['DNNTrueClass'] == 0], **kwargs)
-
-    hist_ee_SS, bin_edges = np.histogram(data['DNNPredTrueClass'][(data['DNNTrueClass'] == 1) & (data['CCIsSS'] == 1)], **kwargs)
-    hist_y_SS, bin_edges = np.histogram(data['DNNPredTrueClass'][(data['DNNTrueClass'] == 0) & (data['CCIsSS'] == 1)], **kwargs)
-
-    hist_ee_MS, bin_edges = np.histogram(data['DNNPredTrueClass'][(data['DNNTrueClass'] == 1) & (data['CCIsSS'] == 0)], **kwargs)
-    hist_y_MS, bin_edges = np.histogram(data['DNNPredTrueClass'][(data['DNNTrueClass'] == 0) & (data['CCIsSS'] == 0)], **kwargs)
-
-    bin_centres = (bin_edges[:-1] + bin_edges[1:]) / 2
-
-    plt.clf()
-    plt.step(bin_centres, hist_y, where='mid', color='firebrick', label='gamma')
-    plt.step(bin_centres, hist_ee, where='mid', color='blue', label='2beta')
-    # plt.fill_between(bin_centres, np.zeros(hist_y_SS.shape), hist_y_MS*(1-norm_ms), label='gamma (MS)', step='mid', color='firebrick', alpha=0.3)
-    # plt.fill_between(bin_centres, np.zeros(hist_ee_SS.shape), hist_ee_MS*(1-norm_ms), label='2beta (MS)', step='mid', color='blue', alpha=0.3)
-    plt.xlabel('threshold')
-    plt.legend(loc='upper center')
-    plt.title('SS+MS')
-    plt.xlim([0, 1])
-    plt.ylim(ymin=0)
-    plt.savefig(args.folderOUT + 'histogram_vs_threshold.pdf', bbox_inches='tight')
-    plt.close()
-
-    plt.clf()
-    plt.step(bin_centres, hist_y_SS, where='mid', color='firebrick', label='gamma')
-    plt.step(bin_centres, hist_ee_SS, where='mid', color='blue', label='2beta')
-    plt.xlabel('threshold')
-    plt.legend(loc='best')
-    plt.title('SS-only')
-    plt.xlim([0, 1])
-    plt.ylim(ymin=0)
-    plt.savefig(args.folderOUT + 'histogram_SS_vs_threshold.pdf', bbox_inches='tight')
-    plt.close()
-
-    plt.clf()
-    plt.step(bin_centres, hist_y_MS, where='mid', color='firebrick', label='gamma')
-    plt.step(bin_centres, hist_ee_MS, where='mid', color='blue', label='2beta')
-    plt.xlabel('threshold')
-    plt.legend(loc='best')
-    plt.title('MS-only')
-    plt.xlim([0, 1])
-    plt.ylim(ymin=0)
-    plt.savefig(args.folderOUT + 'histogram_MS_vs_threshold.pdf', bbox_inches='tight')
-    plt.close()
-
-    exit()
 
     from sklearn.metrics import confusion_matrix, precision_score, recall_score, \
         f1_score, accuracy_score, classification_report, precision_recall_curve, roc_curve, roc_auc_score
 
-    energies = np.linspace(1000, 3000, 5, endpoint=True)
+    # energies = np.linspace(1000, 3000, 5, endpoint=True)
+    energies = np.linspace(2400, 2700, 4, endpoint=True)
     eval_dict = {'cm': [], 'as': [], 'ps': [], 'rs': [], 'fs': [], 'prc': [], 'roc': [], 'roc_auc': []}
     for i in range(len(energies)):
         if i == 0:
-            mask = np.ones(data['QValue'].size, dtype=bool)
+            # mask = np.ones((np.sum(data['CCPurityCorrectedEnergy'], axis=1).size), dtype=bool)
+            mask = data['CCIsSS'] == 1
             print 'Validating energies: %.0f - %.0f' % (energies[0], energies[-1])
         else:
-            mask = np.asarray((data['QValue'] >= energies[i - 1]) & (data['QValue'] < energies[i]))
+            # continue
+            mask = np.asarray((data['CCIsSS'] == 1) & (np.sum(data['CCPurityCorrectedEnergy'], axis=1) >= energies[i - 1]) & (np.sum(data['CCPurityCorrectedEnergy'], axis=1) < energies[i]))
             print 'Validating energies: %.0f - %.0f' % (energies[i - 1], energies[i]), '\tNumber of events:', (
             mask == True).sum()
 
@@ -327,14 +269,15 @@ def validation_mc_plots(args, folderOUT, data):
     plt.close()
 
     plt.clf()
+    plt.plot([0, 1], [0.9, 0.9], 'k-', lw=0.5)
     for i in range(len(energies[:-1])):
-        plt.plot(eval_dict['roc'][i + 1][0], eval_dict['roc'][i + 1][1],
-                 label='%.1f-%.1f MeV' % (energies[i] / 1.e3, energies[i + 1] / 1.e3))
-    plt.plot(eval_dict['roc'][0][0], eval_dict['roc'][0][1], 'k-', lw=2, label='total')
-    plt.plot([0, 1], [0, 1], 'k--')
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.legend(loc='lower right')
+        plt.plot(1.0-eval_dict['roc'][i + 1][0], eval_dict['roc'][i + 1][1],
+                 label='%.1f-%.1f MeV (%.0f %%)' % (energies[i] / 1.e3, energies[i + 1] / 1.e3, 100.*(eval_dict['roc_auc'][i + 1]-0.5)))
+    plt.plot(1.0-eval_dict['roc'][0][0], eval_dict['roc'][0][1], 'k-', lw=2, label='total (%.0f %%)' % (100.*(eval_dict['roc_auc'][0]-0.5)))
+    plt.plot([1, 0], [0, 1], 'k--')
+    plt.xlabel('Background rejection')
+    plt.ylabel('Signal efficiency')
+    plt.legend(loc='lower left')
     plt.xlim([0, 1])
     plt.ylim([0, 1])
     plt.savefig(args.folderOUT + 'roc_curve.pdf', bbox_inches='tight')
@@ -343,6 +286,25 @@ def validation_mc_plots(args, folderOUT, data):
 # ----------------------------------------------------------
 # Plots
 # ----------------------------------------------------------
+def norm_discriminator(data, init=[-1,1], goal=[0,1]): #TODO Find equation to norm arbitrary ranges
+    if not isinstance(data, np.ndarray):
+        raise TypeError('wrong data type: %s'%(type(data)))
+    return (data+1.0)/2.0
+
+def get_thresh_at_sig_eff_or_at_bkg_rej(dataTrue, dataPred, cut_value=0.9, mode='sig_eff'):
+    from sklearn.metrics import roc_curve
+    if cut_value<0.0 or cut_value>1.0:
+        raise ValueError('cut_value must be in range [0,1]. Used: %f'%(cut_value))
+    fpr, tpr, thresh = roc_curve(dataTrue, dataPred)
+    if mode=='sig_eff':
+        idx = np.argmax(tpr > cut_value)
+    elif mode=='bkg_rej':
+        idx = np.argmax(fpr > cut_value)
+    else:
+        raise ValueError('mode must be sig_eff or bkg_rej. Used: %s' % (mode))
+    print idx, thresh[idx], tpr[idx], fpr[idx]
+    return thresh[idx]
+
 # scatter 2D heatmap
 def plot_scatter_hist2d(E_x, E_y, range_x, range_y, name_x, name_y, name_title, fOUT):
     # hist, xbins, ybins = np.histogram2d(E_x, E_y, range=[range_x,range_y], bins=50, normed=True )
@@ -364,6 +326,214 @@ def plot_scatter_hist2d(E_x, E_y, range_x, range_y, name_x, name_y, name_title, 
     plt.close()
     return
 
+def plot_ROC_curve(fOUT, dataTrue, dataPred, label):
+    from sklearn.metrics import roc_curve, roc_auc_score
+
+    if isinstance(dataPred, list): pass
+    elif isinstance(dataPred, np.ndarray):
+        dataPred = [dataPred]
+        label = [label]
+    else:
+        raise TypeError('passed variable need to be list/np.ndarray')
+
+    plt.clf()
+    plt.plot([0, 1], [0.9, 0.9], 'k-', lw=0.5)
+    for i in xrange(len(dataPred)):
+        roc_i = roc_curve(dataTrue, dataPred[i])
+        roc_auc_i = roc_auc_score(dataTrue, dataPred[i])
+        plt.plot(1.0-roc_i[0], roc_i[1], label='%s (%.1f %%)' % (label[i], (roc_auc_i-0.5) * 100.))
+    plt.plot([1, 0], [0, 1], 'k--')
+    plt.xlabel('Background rejection')
+    plt.ylabel('Signal efficiency')
+    plt.legend(loc='lower left')
+    plt.xlim([0, 1])
+    plt.ylim([0, 1])
+    plt.savefig(fOUT, bbox_inches='tight')
+    plt.clf()
+    plt.close()
+    return
+
+def plot_histogram_vs_threshold(fOUT, data, label):
+    if isinstance(data, list): pass
+    elif isinstance(data, np.ndarray):
+        data = [data]
+        label = [label]
+    else: raise TypeError('passed variable need to be list/np.ndarray')
+
+    kwargs = {
+        'range': (0, 1),
+        'bins': 100,
+        'density': True,
+        'facecolor': 'None',
+        'histtype': 'step',
+        'lw': 2.
+    }
+
+    plt.clf()
+    for i in xrange(len(data)):
+        plt.hist(data[i], label='%s' % (label[i]), **kwargs)
+    plt.xlabel('signal-likeness')
+    plt.legend(loc='best')
+    plt.xlim([0, 1])
+    plt.ylim(ymin=0)
+    plt.savefig(fOUT, bbox_inches='tight')
+    plt.clf()
+    plt.close()
+    return
+
+def plot_prec_vs_recall_curve(fOUT, dataTrue, dataPred, label):
+    from sklearn.metrics import precision_recall_curve
+
+    if isinstance(dataPred, list): pass
+    elif isinstance(dataPred, np.ndarray):
+        dataPred = [dataPred]
+        label = [label]
+    else: raise TypeError('passed variable need to be list/np.ndarray')
+
+    plt.clf()
+    for i in xrange(len(dataPred)):
+        pre_i, rec_i, thr_i = precision_recall_curve(dataTrue, dataPred[i])
+        plt.plot(rec_i, pre_i, label='%s' % (label[i]))
+    plt.xlabel('Sensitivity')
+    plt.ylabel('Precision')
+    plt.legend(loc='best')
+    plt.xlim([0, 1])
+    plt.ylim([0, 1])
+    plt.savefig(fOUT, bbox_inches='tight')
+    plt.clf()
+    plt.close()
+    return
+
+def plot_prec_recall_vs_thresh_curve(fOUT, dataTrue, dataPred, label):
+    from sklearn.metrics import precision_recall_curve
+
+    if isinstance(dataPred, list):
+        pass
+    elif isinstance(dataPred, np.ndarray):
+        dataPred = [dataPred]
+        label = [label]
+    else:
+        raise TypeError('passed variable need to be list/np.ndarray')
+
+    plt.clf()
+    for i in xrange(len(dataPred)):
+        pre_vs_rec_i = precision_recall_curve(dataTrue, dataPred[i])
+        plt.plot(pre_vs_rec_i[2], pre_vs_rec_i[0][:-1], '--', color='C%d' % i)
+        plt.plot(pre_vs_rec_i[2], pre_vs_rec_i[1][:-1], '-' , color='C%d' % i, label='%s' % (label[i]))
+    plt.xlabel('threshold')
+    plt.title('- - - - precision   |   $^{\_\_\_\_}$ sensitivity')
+    plt.legend(loc='best')
+    plt.xlim([0, 1])
+    plt.ylim([0, 1])
+    plt.savefig(fOUT, bbox_inches='tight')
+    plt.clf()
+    plt.close()
+    return
+
+def plot_Mikes_plot_idea(fOUT, data, discr_mask, discr_criterion, bkg_or_sig, discr_range=[0, 20], discr_label='True Event Size [mm]'):
+    if bkg_or_sig in ['bkg', 'Bkg', 'background', 'Background']:
+        label = 'Background'
+    elif bkg_or_sig in ['sig', 'Sig', 'signal', 'Signal']:
+        label = 'Signal'
+    else: raise ValueError('bkg_or_sig variable holds strange argument: %s'%(str(bkg_or_sig)))
+    plt.figure(20)
+    plt.subplot(211)
+
+    bins = np.linspace(discr_range[0], discr_range[-1], 40)
+
+    hist_full = plt.hist(data,  bins=bins, facecolor="None", color='r', linewidth=2.5, histtype='step', label='All %s'%(label), normed=False)
+    hist_cut = plt.hist(data[discr_mask], bins=bins, facecolor="b", color='b', alpha=0.5, linewidth=2.5, histtype='stepfilled', label='%s (%s)'%(label, discr_criterion), normed=False)
+    plt.ylabel("Counts [#]", fontsize=15)
+    plt.grid(True)
+    plt.xlim(bins[0], bins[-1])
+    # plt.legend(loc='upper right')
+    plt.legend(loc='best')
+
+    plt.subplot(212)
+    data_points = np.asarray(hist_full[1])[:-1] + np.diff(hist_full[1])[0]/2.0
+    data_y = (hist_cut[0]*1.0)/hist_full[0]
+    data_y_error = data_y * np.sqrt(1./hist_cut[0] + 1./hist_full[0])
+    plt.fill_between(data_points, data_y - data_y_error, data_y + data_y_error, edgecolor='none', facecolor='k', alpha=0.8)
+    plt.xlabel('%s'%discr_label, fontsize=15)
+    plt.ylabel("Frac Cut (%s)"%(discr_criterion), fontsize=15)
+    plt.xlim(bins[0], bins[-1])
+    plt.ylim(0.0, 1.0)
+    plt.grid(True)
+    plt.savefig(fOUT, bbox_inches='tight')
+    plt.clf()
+    plt.close()
+    return
+
+def plot_Mikes_plot_idea_new(fOUT, data, discr_mask, sig_or_bkg, discr_thresh, discr_range, discr_label, data_label):
+    labelBkg = 'Background'
+    labelSig = 'Signal'
+
+    bins = np.linspace(discr_range[0], discr_range[-1], 40)
+
+    f = plt.figure(figsize=(6.4, 4.8*1.5))
+    gs = gridspec.GridSpec(3, 1)
+    ax1 = plt.subplot(gs[0])
+    ax2 = plt.subplot(gs[1], sharex=ax1)
+    ax3 = plt.subplot(gs[2], sharex=ax1)
+
+    hist_sig_all = ax1.hist(data[sig_or_bkg],  bins=bins, facecolor="None", color='k', linewidth=2.5, histtype='step', label='All %s'%(labelSig), normed=False)
+    hist_sig_cut = ax1.hist(data[sig_or_bkg & (discr_mask>discr_thresh)], bins=bins, facecolor="b", color='b', alpha=0.5, linewidth=2.5, histtype='stepfilled', label='%s (%s>%.2f)'%(labelSig, discr_label, discr_thresh), normed=False)
+    ax1.set_ylabel("Counts [#]", fontsize=13)
+    ax1.grid(True)
+    ax1.set_xlim(bins[0], bins[-1])
+    ax1.legend(loc='best')
+    plt.setp(ax1.get_xticklabels(), visible=False)
+
+    hist_bkg_all = ax2.hist(data[np.invert(sig_or_bkg)],  bins=bins, facecolor="None", color='k', linewidth=2.5, histtype='step', normed=False)
+    hist_bkg_cut = ax2.hist(data[np.invert(sig_or_bkg) & (discr_mask<discr_thresh)], bins=bins, facecolor="g", color='g', alpha=0.5, linewidth=2.5, histtype='stepfilled', label='%s (%s<%.2f)'%(labelBkg, discr_label, discr_thresh), normed=False)
+    ax2.set_ylabel("Counts [#]", fontsize=13)
+    ax2.grid(True)
+    ax2.legend(loc='best')
+    plt.setp(ax2.get_xticklabels(), visible=False)
+
+    data_points = np.asarray(hist_sig_all[1])[:-1] + np.diff(hist_sig_all[1])[0]/2.0
+    frac_sig = (hist_sig_cut[0] * 1.0) / hist_sig_all[0]
+    frac_bkg = (hist_bkg_cut[0] * 1.0) / hist_bkg_all[0]
+    frac_sig_error = frac_sig * np.sqrt(1. / hist_sig_cut[0] + 1. / hist_sig_all[0])
+    frac_bkg_error = frac_bkg * np.sqrt(1. / hist_bkg_cut[0] + 1. / hist_bkg_all[0])
+    ax3.fill_between(data_points, frac_bkg - frac_bkg_error, frac_bkg + frac_bkg_error, label=labelBkg, edgecolor='none', facecolor='g', alpha=0.8)
+    ax3.fill_between(data_points, frac_sig - frac_sig_error, frac_sig + frac_sig_error, label=labelSig, edgecolor='none', facecolor='b', alpha=0.8)
+    ax3.set_xlabel('%s'%data_label, fontsize=13)
+    ax3.set_ylabel("Fraction Cut/All", fontsize=13)
+    ax3.set_ylim(0.0, 1.0)
+    plt.grid(True)
+
+    f.savefig(fOUT, bbox_inches='tight')
+    plt.clf()
+    plt.close()
+    return
+
+def plot_energy_spectrum(fOUT, data, label):
+    if isinstance(data, list):
+        pass
+    elif isinstance(data, np.ndarray):
+        data = [data]
+        label = [label]
+    else:
+        raise TypeError('passed variable need to be list/np.ndarray')
+
+    plt.clf()
+    rmin = min([np.min(d) for d in data])
+    rmax = max([np.max(d) for d in data])
+    print rmin, rmax
+    for i in xrange(len(data)):
+        plt.hist(data[i], bins=100, range=(rmin, rmax), facecolor="None", histtype='step', lw=2., label='%s' % (label[i]), density=True)
+    plt.xlabel('uncalibrated energy [keV]')
+    plt.ylabel('normed counts [#]')
+    plt.legend(loc='best')
+    plt.xlim([rmin, rmax])
+    # plt.ylim([0, 1])
+    plt.savefig(fOUT, bbox_inches='tight')
+    plt.clf()
+    plt.close()
+    return
+
+
 # scatter
 def plot_scatter(E_x, E_y, name_x, name_y, fOUT):
     dE = E_x - E_y
@@ -373,8 +543,6 @@ def plot_scatter(E_x, E_y, name_x, name_y, fOUT):
     plt.legend(loc="best")
     plt.xlabel('%s' % (name_x))
     plt.ylabel('%s' % (name_y))
-    # plt.xlim(xmin=600, xmax=3300)
-    # plt.ylim(ymin=600, ymax=3300)
     plt.grid(True)
     plt.savefig(fOUT, bbox_inches='tight')
     plt.clf()

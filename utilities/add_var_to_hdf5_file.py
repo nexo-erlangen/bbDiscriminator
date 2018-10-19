@@ -15,12 +15,29 @@ shuffle = False
 compression = ('gzip', 4)
 
 def main():
-    folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_Uni_MC_P2/'
-    folderOUT = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_Uni_MC_P2-withBDT/'
-
     folderBDT = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/bdt_combined_hdf5/'
-    file_bdt_signal = folderBDT + 'bb0n_withBDt.hdf5'
-    file_bdt_bkg = folderBDT + 'gamma_withBDt.hdf5'
+    folderDATA = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/'
+
+    folderIN = folderDATA + 'mixed_WFs_Uni_MC_P2/'
+    folderOUT = folderDATA + 'mixed_WFs_Uni_MC_P2-bdt/'
+    file_bdt = {}
+    file_bdt[0] = folderBDT + 'gamma_withBDt.hdf5'
+    file_bdt[1] = folderBDT + 'bb0nE_withBDt.hdf5'
+
+    # folderIN = folderDATA + 'U238_WFs_AllVessel_MC_P2/'
+    # folderOUT = folderDATA + 'U238_WFs_AllVessel_MC_P2-bdt/'
+    # file_bdt = {}
+    # file_bdt[0] = folderBDT + 'AllVessel_U238_withBDt.hdf5'
+
+    # folderIN = folderDATA + 'Th232_WFs_AllVessel_MC_P2/'
+    # folderOUT = folderDATA + 'Th232_WFs_AllVessel_MC_P2-bdt/'
+    # file_bdt = {}
+    # file_bdt[0] = folderBDT + 'AllVessel_Th232_withBDt.hdf5'
+
+    # folderIN = folderDATA + 'bb0n_WFs_Uni_MC_P2/'
+    # folderOUT = folderDATA + 'bb0n_WFs_Uni_MC_P2-bdt/'
+    # file_bdt = {}
+    # file_bdt[1] = folderBDT + 'bb0n_withBDt.hdf5'
 
     print
     print 'Input Folder:\t', folderIN
@@ -32,33 +49,24 @@ def main():
     print 'Number of Files:\t', len(files)
     print
 
-    print 'BDT Signal File:\t', file_bdt_signal
-    print 'BDT Bkg File:\t\t', file_bdt_bkg
-    print
-
-    data_bdt_signal = {}
-    f = h5py.File(str(file_bdt_signal), "r")
-    for key in f.keys():
-        data_bdt_signal[key] = np.asarray(f[key])
-    f.close()
-
-    data_bdt_bkg = {}
-    f = h5py.File(str(file_bdt_bkg), "r")
-    for key in f.keys():
-        data_bdt_bkg[key] = np.asarray(f[key])
-    f.close()
-
-    print 'BDT Signal Number Events:\t', data_bdt_signal.values()[0].shape[0]
-    print 'BDT Bkg Number Events:\t\t', data_bdt_bkg.values()[0].shape[0]
-    print
-
+    data_bdt = {}
+    for id, file in file_bdt.items():
+        print 'reading BDT file:\t', file
+        data_bdt[id] = {}
+        f = h5py.File(str(file), "r")
+        for key in f.keys():
+            data_bdt[id][key] = np.asarray(f[key])
+        f.close()
+        print 'Number events in file:\t', data_bdt[id].values()[0].shape[0]
+        print
 
     for file in files:
         print 'adjusting file:\t\t', file
-        add_var_to_file(folderIN+file, folderOUT+file, data_sig=data_bdt_signal, data_bkg=data_bdt_bkg)
+        add_var_to_file(folderIN+file, folderOUT+file, data_bdt=data_bdt)
+        break
 
 
-def add_var_to_file(fileIN, fileOUT, data_sig, data_bkg):
+def add_var_to_file(fileIN, fileOUT, data_bdt):
     fIN = h5py.File(fileIN, "r")
     fOUT = h5py.File(fileOUT, "w")
 
@@ -72,29 +80,35 @@ def add_var_to_file(fileIN, fileOUT, data_sig, data_bkg):
     keyID['risetime'] = 'CCRisetime'
     keyID['maxV'] = 'CCMaxVFraction'
     keyID['stand'] = 'CCStandoff'
-    keyID['bdt_ss'] = 'BDT-SS'
-    keyID['bdt_ss_withV'] = 'BDT-SS-V'
-    keyID['bdt_ss_noStand'] = 'BDT-SS-NoStandoff'
-    keyID['bdt_all'] = 'BDT-SSMS'
+    keyID['event_sizeV'] = 'MCEventSizeV'
+    keyID['event_sizeU'] = 'MCEventSizeU'
+    keyID['event_sizeR'] = 'MCEventSizeR'
+    keyID['event_sizeZ'] = 'MCEventSizeZ'
+    keyID['disc_ss_std'] = 'BDT-SS-Std'
+    keyID['disc_ss_noStand'] = 'BDT-SS-Uni'
+    # keyID['bdt_ss'] = 'BDT-SS'
+    # keyID['bdt_ss_withV'] = 'BDT-SS-V'
+    # keyID['bdt_ss_noStand'] = 'BDT-SS-NoStandoff'
+    # keyID['bdt_all'] = 'BDT-SSMS'
+
+    keySkip = ['bdt_bins', 'energy', 'roc_disc_ss_std', 'roc_disc_ss_noStand', 'mult']
 
     fOUT_new = {}
-    for key in data_sig.keys():
+    for key in data_bdt.values()[0].keys():
         if key in ['runNum', 'eventNum']: continue
+        elif key in keySkip: continue
         elif key not in keyID.keys(): raise ValueError('strange key: %s'%key)
         fOUT_new[keyID[key]] = np.zeros((fIN_NumEvents,), dtype=np.float32)
 
-    data = {}
-    data[0] = data_bkg
-    data[1] = data_sig
-
     for i in xrange(len(fIN_EventNum)):
         id = fIN_ID[i]
-        index = np.where(np.logical_and(fIN_RunNum[i] == data[id]['runNum'],
-                                        fIN_EventNum[i] == data[id]['eventNum']))[0][0]
+        index = np.where(np.logical_and(fIN_RunNum[i] == data_bdt[id]['runNum'],
+                                        fIN_EventNum[i] == data_bdt[id]['eventNum']))[0][0]
 
-        for key in data[id].keys():
+        for key in data_bdt[id].keys():
             if key in ['runNum', 'eventNum']: continue
-            fOUT_new[keyID[key]][i] = data[id][key][index]
+            elif key in keySkip: continue
+            fOUT_new[keyID[key]][i] = data_bdt[id][key][index]
 
     wfs = np.asarray(fIN.get('wfs'))
     chunks_wfs = (batchsize,) + wfs.shape[1:] if compression[0] is not None else None
@@ -102,6 +116,7 @@ def add_var_to_file(fileIN, fileOUT, data_sig, data_bkg):
     fOUT.create_dataset('wfs', data=wfs, dtype=np.float32, fletcher32=fletcher32, chunks=chunks_wfs, compression=compression[0], compression_opts=compression[1], shuffle=shuffle)
     for key in fIN.keys():
         if key in ['wfs']: continue
+        elif key in fOUT_new.keys(): continue
         temp = np.asarray(fIN.get(key))
         fOUT.create_dataset(key, data=temp, dtype=np.float32)
 

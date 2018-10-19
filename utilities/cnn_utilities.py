@@ -120,8 +120,7 @@ class BatchLevelPerformanceLogger(ks.callbacks.Callback):
         self.logfile_train.close()
         try:
             plot_validation.plot_learning_curve(self.args.folderOUT, np.loadtxt(self.logfile_train_fname, unpack=True))
-        except:
-            print 'plotting learning curve not successfull. Skipping'
+        except: print 'plotting learning curve not successfull. Skipping'
 
 
 class EpochLevelPerformanceLogger(ks.callbacks.Callback):

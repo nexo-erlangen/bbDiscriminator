@@ -40,7 +40,7 @@ def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f
 
     eventInfo = {}
     while 1:
-        random.shuffle(files) #TODO no shuffling right now
+        random.shuffle(files)
         for filename in files:
             f = h5py.File(str(filename), "r")
             if f_size is None: f_size = getNumEvents(filename)
@@ -48,7 +48,7 @@ def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f
                 #     'is not equal to the f_size of the true .h5 file. Should be ok if you use the tb_callback.')
 
             lst = np.arange(0, f_size, batchsize)
-            random.shuffle(lst) #TODO no shuffling right now
+            random.shuffle(lst)
 
             # filter the labels we don't want for now
             for key in f.keys():
@@ -59,13 +59,14 @@ def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f
 
             for i in lst:
                 if not yield_mc_info == 2:
-                    if wires in ['U', 'V', 'UV', 'U+V']:      xs_i = f['wfs'][i: i + batchsize, wireindex]
+                    if wires in ['U', 'V', 'UV', 'U+V']:
+                        xs_i = f['wfs'][i: i + batchsize, wireindex]
                     else: raise ValueError('passed wire specifier need to be U/V/UV')
                     xs_i = np.swapaxes(xs_i, 0, 1)
                     xs_i = np.swapaxes(xs_i, 2, 3)
 
                     # print xs_i.shape
-                    # xs_i = np.reshape(xs_i, (batchsize, 38, 350, -1))
+                    # xs_i = np.reshape(xs_i, (batchsize, 152, 350, -1))
                     # xs_i = np.swapaxes(xs_i, 1, 2)
                     # xs_i = np.squeeze(xs_i)
                     # print xs_i.shape

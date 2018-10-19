@@ -12,10 +12,17 @@ import cPickle as pickle
 
 ##################################################################################################
 
-folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/180906-1938/0validation/ShapeAgreement/'
+folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181002-0836/0validation/ShapeAgreement-014/'
 files = {}
-files['1'] = '../Th228-mc-S5-023-U/events_023_Th228-mc-S5-U.p'
-files['2'] = '../Th228-data-S5-023-U/events_023_Th228-data-S5-U.p'
+files['1'] = '../Th228-mc-S5-014-UV/events_014_Th228-mc-S5-UV.p'
+files['2'] = '../Th228-data-S5-014-UV/events_014_Th228-data-S5-UV.p'
+
+# folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/180906-1938/0validation/ShapeAgreement/'
+# files = {}
+# files['1'] = '../Th228-mc-S5-023-U/events_023_Th228-mc-S5-U.p'
+# files['2'] = '../Th228-data-S5-023-U/events_023_Th228-data-S5-U.p'
+
+discriminator = 'signal-likeness'
 
 def main():
     data = {}
@@ -30,44 +37,36 @@ def main():
 
     plot_hist2_multi(data['1']['DNNPredTrueClass'][mask1], rad1[mask1],
                      data['2']['DNNPredTrueClass'][mask2], rad2[mask2],
-                     [0.0, 1.0], [0, 180], 'threshold', 'R', 'MC+Data', 'threshold_vs_R_SS.pdf')
-    plot_hist2_multi(data['1']['DNNPredTrueClass'][mask1], data['1']['CCPosZ'][:, 0][mask1],
-                     data['2']['DNNPredTrueClass'][mask2], data['2']['CCPosZ'][:, 0][mask2],
-                     [0.0, 1.0], [-180, 180], 'threshold', 'Z', 'MC+Data', 'threshold_vs_Z_SS.pdf')
+                     [0.0, 1.0], [0, 180], discriminator, 'R', 'MC+Data', '%s_vs_R_SS.pdf'%(discriminator))
     plot_hist2_multi(data['1']['DNNPredTrueClass'][mask1], data['1']['CCPosX'][:, 0][mask1],
                      data['2']['DNNPredTrueClass'][mask2], data['2']['CCPosX'][:, 0][mask2],
-                     [0.0, 1.0], [-200, 200], 'threshold', 'X', 'MC+Data', 'threshold_vs_X_SS.pdf')
-
+                     [0.0, 1.0], [-200, 200], discriminator, 'X', 'MC+Data', '%s_vs_X_SS.pdf'%(discriminator))
     plot_hist2_multi(data['1']['DNNPredTrueClass'][mask1], data['1']['CCPosY'][:, 0][mask1],
                      data['2']['DNNPredTrueClass'][mask2], data['2']['CCPosY'][:, 0][mask2],
-                     [0.0, 1.0], [-200, 200], 'threshold', 'Y', 'MC+Data', 'threshold_vs_Y_SS.pdf')
-
-    plot_hist2_multi(data['1']['DNNPredTrueClass'][mask1], np.sum(data['1']['CCCorrectedEnergy'], axis=1)[mask1],
-                     data['2']['DNNPredTrueClass'][mask2], np.sum(data['2']['CCCorrectedEnergy'], axis=1)[mask2],
-                     [0.0, 1.0], [1000, 3000], 'threshold', 'Energy', 'MC+Data', 'threshold_vs_Energy_SS.pdf')
-
+                     [0.0, 1.0], [-200, 200], discriminator, 'Y', 'MC+Data', '%s_vs_Y_SS.pdf'%(discriminator))
+    plot_hist2_multi(data['1']['DNNPredTrueClass'][mask1], data['1']['CCPosZ'][:, 0][mask1],
+                     data['2']['DNNPredTrueClass'][mask2], data['2']['CCPosZ'][:, 0][mask2],
+                     [0.0, 1.0], [-200, 200], discriminator, 'Z', 'MC+Data', '%s_vs_Z_SS.pdf'%(discriminator))
     plot_hist2_multi(data['1']['DNNPredTrueClass'][mask1], np.sum(data['1']['CCPurityCorrectedEnergy'], axis=1)[mask1],
                      data['2']['DNNPredTrueClass'][mask2], np.sum(data['2']['CCPurityCorrectedEnergy'], axis=1)[mask2],
-                     [0.0, 1.0], [1000, 3000], 'threshold', 'Energy', 'MC+Data', 'threshold_vs_PurEnergy_SS.pdf')
+                     [0.0, 1.0], [1000, 3000], discriminator, 'Energy', 'MC+Data', '%s_vs_Energy_SS.pdf'%(discriminator))
 
 
-    # plot_hist2_multi_norm(data['1']['DNNPredTrueClass'][mask1], rad1[mask1],
-    #                       data['2']['DNNPredTrueClass'][mask2], rad2[mask2],
-    #                       [0.0, 1.0], [0, 180], 'threshold', 'R', 'MC+Data', 'threshold_vs_R_SS_norm.pdf')
-    # plot_hist2_multi_norm(data['1']['DNNPredTrueClass'][mask1], data['1']['CCPosZ'][:, 0][mask1],
-    #                       data['2']['DNNPredTrueClass'][mask2], data['2']['CCPosZ'][:, 0][mask2],
-    #                       [0.0, 1.0], [0, 180], 'threshold', 'Z', 'MC+Data', 'threshold_vs_Z_SS_norm.pdf')
-    # plot_hist2_multi_norm(data['1']['DNNPredTrueClass'][mask1], data['1']['CCPosX'][:, 0][mask1],
-    #                       data['2']['DNNPredTrueClass'][mask2], data['2']['CCPosX'][:, 0][mask2],
-    #                       [0.0, 1.0], [-200, 200], 'threshold', 'X', 'MC+Data', 'threshold_vs_X_SS_norm.pdf')
-    # plot_hist2_multi_norm(data['1']['DNNPredTrueClass'][mask1], data['1']['CCPosY'][:, 0][mask1],
-    #                       data['2']['DNNPredTrueClass'][mask2], data['2']['CCPosY'][:, 0][mask2],
-    #                       [0.0, 1.0], [-200, 200], 'threshold', 'Y', 'MC+Data', 'threshold_vs_Y_SS_norm.pdf')
+    plot_hist2_multi_norm(data['1']['DNNPredTrueClass'][mask1], rad1[mask1],
+                          data['2']['DNNPredTrueClass'][mask2], rad2[mask2],
+                          [0.0, 1.0], [0, 180], discriminator, 'R', 'MC+Data', '%s_vs_R_SS_norm.pdf'%(discriminator))
+    plot_hist2_multi_norm(data['1']['DNNPredTrueClass'][mask1], data['1']['CCPosX'][:, 0][mask1],
+                          data['2']['DNNPredTrueClass'][mask2], data['2']['CCPosX'][:, 0][mask2],
+                          [0.0, 1.0], [-200, 200], discriminator, 'X', 'MC+Data', '%s_vs_X_SS_norm.pdf'%(discriminator))
+    plot_hist2_multi_norm(data['1']['DNNPredTrueClass'][mask1], data['1']['CCPosY'][:, 0][mask1],
+                          data['2']['DNNPredTrueClass'][mask2], data['2']['CCPosY'][:, 0][mask2],
+                          [0.0, 1.0], [-200, 200], discriminator, 'Y', 'MC+Data', '%s_vs_Y_SS_norm.pdf'%(discriminator))
+    plot_hist2_multi_norm(data['1']['DNNPredTrueClass'][mask1], data['1']['CCPosZ'][:, 0][mask1],
+                          data['2']['DNNPredTrueClass'][mask2], data['2']['CCPosZ'][:, 0][mask2],
+                          [0.0, 1.0], [-200, 200], discriminator, 'Z', 'MC+Data', '%s_vs_Z_SS_norm.pdf'%(discriminator))
     plot_hist2_multi_norm(data['1']['DNNPredTrueClass'][mask1], np.sum(data['1']['CCPurityCorrectedEnergy'], axis=1)[mask1],
                           data['2']['DNNPredTrueClass'][mask2], np.sum(data['2']['CCPurityCorrectedEnergy'], axis=1)[mask2],
-                          [0.0, 1.0], [1100, 2500], 'threshold', 'Energy', 'MC+Data', 'threshold_vs_Energy_SS_norm.pdf')
-
-    exit()
+                          [0.0, 1.0], [1000, 2500], discriminator, 'Energy', 'MC+Data', '%s_vs_Energy_SS_norm.pdf'%(discriminator))
 
     mask_1y = data['1']['DNNTrueClass'] == 0
     mask_2y = data['2']['DNNTrueClass'] == 0
@@ -107,31 +106,30 @@ def main():
             'density': False
         }
 
-        e_limit = 1000.
+        e_limit = 2000.
         maskE1 = np.sum(data['1']['CCPurityCorrectedEnergy'], axis=1) > e_limit
         maskE2 = np.sum(data['2']['CCPurityCorrectedEnergy'], axis=1) > e_limit
-        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & maskE1] , data['2']['DNNPredTrueClass'][mask_2y & mask2 & maskE2] , title, "threshold (E gr %d)" % (e_limit), **kwargs)
-        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & ~maskE1], data['2']['DNNPredTrueClass'][mask_2y & mask2 & ~maskE2], title, "threshold (E le %d)" % (e_limit), **kwargs)
+        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & maskE1] , data['2']['DNNPredTrueClass'][mask_2y & mask2 & maskE2] , title, '%s (E gr %d)' % (discriminator, e_limit), **kwargs)
+        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & ~maskE1], data['2']['DNNPredTrueClass'][mask_2y & mask2 & ~maskE2], title, '%s (E le %d)' % (discriminator, e_limit), **kwargs)
 
-        continue
 
-        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1], data['2']['DNNPredTrueClass'][mask_2y & mask2], title, 'threshold', **kwargs)
+        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1], data['2']['DNNPredTrueClass'][mask_2y & mask2], title, discriminator, **kwargs)
 
         rad_limit = 160.
         maskR1 = rad1 < rad_limit
         maskR2 = rad2 < rad_limit
-        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & maskR1] , data['2']['DNNPredTrueClass'][mask_2y & mask2 & maskR2] , title, "threshold (R le %d)"%(rad_limit), **kwargs)
-        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & ~maskR1], data['2']['DNNPredTrueClass'][mask_2y & mask2 & ~maskR2], title, 'threshold (R gr %d)'%(rad_limit), **kwargs)
+        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & maskR1] , data['2']['DNNPredTrueClass'][mask_2y & mask2 & maskR2] , title, '%s (R le %d)'%(discriminator, rad_limit), **kwargs)
+        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & ~maskR1], data['2']['DNNPredTrueClass'][mask_2y & mask2 & ~maskR2], title, '%s (R gr %d)'%(discriminator, rad_limit), **kwargs)
 
         z_limit = 20.
         maskZ1 = np.abs(data['1']['CCPosZ'][:, 0]) > z_limit
         maskZ2 = np.abs(data['2']['CCPosZ'][:, 0]) > z_limit
-        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & maskZ1] , data['2']['DNNPredTrueClass'][mask_2y & mask2 & maskZ2] , title, "threshold (Z gr %d)"%(z_limit), **kwargs)
-        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & ~maskZ1], data['2']['DNNPredTrueClass'][mask_2y & mask2 & ~maskZ2], title, 'threshold (Z le %d)'%(z_limit), **kwargs)
+        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & maskZ1] , data['2']['DNNPredTrueClass'][mask_2y & mask2 & maskZ2] , title, '%s (Z gr %d)'%(discriminator, z_limit), **kwargs)
+        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & ~maskZ1], data['2']['DNNPredTrueClass'][mask_2y & mask2 & ~maskZ2], title, '%s (Z le %d)'%(discriminator, z_limit), **kwargs)
 
 
-        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & maskZ1 & maskR1] , data['2']['DNNPredTrueClass'][mask_2y & mask2 & maskZ2 & maskR2] , title, 'threshold (Z gr %d + R le %d)'%(z_limit, rad_limit), **kwargs)
-        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & ~(maskZ1 & maskR1)], data['2']['DNNPredTrueClass'][mask_2y & mask2 & ~(maskZ2 & maskR2)], title, 'threshold not(Z gr %d + R le %d)'%(z_limit, rad_limit), **kwargs)
+        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & maskZ1 & maskR1] , data['2']['DNNPredTrueClass'][mask_2y & mask2 & maskZ2 & maskR2] , title, '%s (Z gr %d + R le %d)'%(discriminator, z_limit, rad_limit), **kwargs)
+        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & ~(maskZ1 & maskR1)], data['2']['DNNPredTrueClass'][mask_2y & mask2 & ~(maskZ2 & maskR2)], title, '%s not(Z gr %d + R le %d)'%(discriminator, z_limit, rad_limit), **kwargs)
 
 
         # kwargs = {
@@ -190,8 +188,9 @@ def make_shape_agreement_plot(mc, data, title, name, **kwargs):
     f.savefig(folderRUNS + name+ '_' + title + '.pdf', bbox_inches='tight')
     plt.close()
 
+#TODO Check difference plot ax3. Looks strange
 def plot_hist2_multi_norm(E_x1, E_y1, E_x2, E_y2, range_x, range_y, name_x, name_y, name_title, fOUT):
-    pos_bins = 10
+    pos_bins = 25
 
     hist1D_Z1, bin_edges = np.histogram(E_y1, range=range_y, bins=pos_bins, normed=True)
     hist1D_Z2, bin_edges = np.histogram(E_y2, range=range_y, bins=pos_bins, normed=True)
@@ -262,8 +261,8 @@ def plot_hist2_multi(E_x1, E_y1, E_x2, E_y2, range_x, range_y, name_x, name_y, n
     h1 = ax1.hexbin(E_x2[:numEv], E_y2[:numEv], extent=extent, gridsize=25, linewidths=0.1, norm=colors.Normalize(vmax=120), cmap=plt.get_cmap('viridis'))
     f.colorbar(h1, ax=ax2, shrink=0.6)
 
-    max3 = np.max(h2.get_array() - h1.get_array())
-    h3 = ax3.hexbin(E_x2[:numEv], E_y2[:numEv], extent=extent, gridsize=25, linewidths=0.1, norm=colors.Normalize(vmin=-max3, vmax=max3), cmap=plt.get_cmap('RdBu_r'))
+    # max3 = np.max(h2.get_array() - h1.get_array())
+    h3 = ax3.hexbin(E_x2[:numEv], E_y2[:numEv], extent=extent, gridsize=25, linewidths=0.1, vmin=-50, vmax=50, cmap=plt.get_cmap('RdBu_r'))
     h3.set_array(h2.get_array() - h1.get_array())
     f.colorbar(h3, ax=ax3, shrink=0.6)
 

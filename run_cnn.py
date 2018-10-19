@@ -15,8 +15,6 @@ from plot_scripts.plot_validation import *
 def main(args):
     frac_train = {'mixedUniMC': 0.90}
     frac_val   = {'mixedUniMC': 0.10}
-    # frac_train = {'mixedUniMC': 0.30}
-    # frac_val = {'mixedUniMC': 0.05}
 
     splitted_files = splitFiles(args, mode=args.mode, frac_train=frac_train, frac_val=frac_val)
 
@@ -117,11 +115,6 @@ def executeCNN(args, files, var_targets, nn_arch, batchsize, epoch, mode, n_gpu=
         args.folderOUT += "0validation/" + args.sources + "-" + mode + "-" + args.position + "-" + str(args.num_weights) + "-" + args.wires + "/"
         os.system("mkdir -p -m 770 %s " % (args.folderOUT))
 
-        # files = {'mixedUniMC': [
-        #     '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_Uni_MC_P2/59-shuffled.hdf5',
-        #     '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_Uni_MC_P2/4-shuffled.hdf5']}
-        # print files
-
         EVENT_INFO = get_events(args=args, files=files, model=model,
                           fOUT=(args.folderOUT + "events_" + str(args.num_weights) + "_" + args.sources + "-" + mode + "-" + args.position + "-" + args.wires + ".p"))
 
@@ -158,7 +151,8 @@ def fit_model(args, model, files, batchsize, var_targets, epoch, shuffle, n_even
     """
 
     train_steps_per_epoch = int(getNumEvents(files['train']) / batchsize)
-    validation_steps = int(min([getNumEvents(files['val']), 5000]) / batchsize)
+    # validation_steps = int(min([getNumEvents(files['val']), 5000]) / batchsize)
+    validation_steps = int(getNumEvents(files['val']) / batchsize)
     genVal = generate_batches_from_files(files['val'], batchsize=batchsize, wires=args.wires, class_type=var_targets, yield_mc_info=0)
 
     callbacks = []
@@ -166,8 +160,8 @@ def fit_model(args, model, files, batchsize, var_targets, epoch, shuffle, n_even
     modellogger = ks.callbacks.ModelCheckpoint(args.folderOUT + 'models/weights-{epoch:03d}.hdf5', save_weights_only=True, period=1)
     lrscheduler = ks.callbacks.LearningRateScheduler(LRschedule_stepdecay, verbose=1)
     epochlogger = EpochLevelPerformanceLogger(args=args, files=files['val'], var_targets=var_targets)
-    batchlogger = BatchLevelPerformanceLogger(display=15, skipBatchesVal=20, steps_per_epoch=train_steps_per_epoch, args=args, #25, 10
-                                              genVal=generate_batches_from_files(files['val'], batchsize=batchsize//2, wires=args.wires, class_type=var_targets, yield_mc_info=0))
+    batchlogger = BatchLevelPerformanceLogger(display=10, skipBatchesVal=5, steps_per_epoch=train_steps_per_epoch, args=args, #15, 20
+                                              genVal=generate_batches_from_files(files['val'], batchsize=batchsize, wires=args.wires, class_type=var_targets, yield_mc_info=0)) #batchsize//2
     callbacks.append(csvlogger)
     callbacks.append(modellogger)
     callbacks.append(lrscheduler)
