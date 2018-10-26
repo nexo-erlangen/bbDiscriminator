@@ -101,11 +101,11 @@ def create_shared_dcnn_network_4():
     return Model(inputs=inputUV, outputs=output)
 
 def create_shared_inception_network_2():
-    kwargs = {'padding': 'same',
-              'dropout': 0.0,
-              'BN': True,
-              'kernel_initializer': 'glorot_uniform'}
-
+    # kwargs = {'padding': 'same',
+    #           'dropout': 0.0,
+    #           'BN': True,
+    #           'kernel_initializer': 'glorot_uniform'}
+    #
     # input = []
     # input.append(Input(shape=(350, 152, 1), name='Wire_1'))
     # # input.append(Input(shape=(350, 38, 1), name='Wire_2'))
@@ -137,6 +137,11 @@ def create_shared_inception_network_2():
 
     #TODO Baseline below
 
+    kwargs = {'padding': 'same',
+              'dropout': 0.0,
+              'BN': True,
+              'kernel_initializer': 'glorot_uniform'}
+
     input = []
     input.append(Input(shape=(350, 38, 1), name='Wire_1'))
     input.append(Input(shape=(350, 38, 1), name='Wire_2'))
@@ -157,11 +162,11 @@ def create_shared_inception_network_2():
     layers.append([MaxPooling2D((2, 1))])
     layers.append(InceptionV1_block(num_filters=num_filters))
     layers.append(InceptionV1_block(num_filters=num_filters))
-    # layers.append([MaxPooling2D((2, 1))])
-    # layers.append(InceptionV1_block(num_filters=num_filters))
-    # layers.append(InceptionV1_block(num_filters=num_filters))
-    # layers.append(InceptionV1_block(num_filters=num_filters_deep))
-    # layers.append(InceptionV1_block(num_filters=num_filters_deep))
+    layers.append([MaxPooling2D((2, 1))])
+    layers.append(InceptionV1_block(num_filters=num_filters))
+    layers.append(InceptionV1_block(num_filters=num_filters))
+    layers.append(InceptionV1_block(num_filters=num_filters))
+    layers.append(InceptionV1_block(num_filters=num_filters))
 
     layers.append([GlobalAveragePooling2D()])
 
@@ -271,7 +276,6 @@ def InceptionV1_block(num_filters=(64, (64, 96), (48, 64), 32)):
     :param tuple num_filters: Kernel sizes which are used for the tower. Ordering like above.
     :return: x: List of resulting output layers. Concat layer is parsed as last tower.
     """
-
     channel_axis = -1 if K.image_data_format() == "channels_last" else 1
     kwargs = {'max_pooling': None,
               'padding': 'same',
@@ -291,8 +295,7 @@ def InceptionV1_block(num_filters=(64, (64, 96), (48, 64), 32)):
 
     branch5x5 = []
     branch5x5.append(Conv_block(num_filters[2][0], (1, 1), **kwargs))
-    branch5x5.append(Conv_block(num_filters[2][1], (3, 3), **kwargs))
-    branch5x5.append(Conv_block(num_filters[2][1], (3, 3), **kwargs))
+    branch5x5.append(Conv_block(num_filters[2][1], (5, 5), **kwargs))
     branch5x5 = sum(branch5x5, [])
 
     # branch7x7 = []
@@ -302,14 +305,13 @@ def InceptionV1_block(num_filters=(64, (64, 96), (48, 64), 32)):
     # branch7x7 = sum(branch7x7, [])
 
     branch_pool = []
-    branch_pool.append([AveragePooling2D((3, 3), strides=(1, 1), padding='same')])
+    branch_pool.append([MaxPooling2D((3, 3), strides=(1, 1), padding='same')])
     branch_pool.append(Conv_block(num_filters[3], (1, 1), **kwargs))
     branch_pool = sum(branch_pool, [])
 
     concat = Concatenate(axis=channel_axis)
 
     return [branch1x1, branch3x3, branch5x5, branch_pool, concat]
-    # return [branch1x1, branch3x3, branch5x5, branch7x7, branch_pool, concat]
 
 def InceptionV3_block(x): #TODO Update code
     """

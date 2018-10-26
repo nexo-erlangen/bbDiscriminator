@@ -62,10 +62,10 @@ class BatchLevelPerformanceLogger(ks.callbacks.Callback):
     def __init__(self, display, skipBatchesVal, steps_per_epoch, args, genVal):
         ks.callbacks.Callback.__init__(self)
         self.Valseen = 0
-        self.averageLoss = 0
-        self.averageAcc = 0
-        self.averageValLoss = 0
-        self.averageValAcc = 0
+        self.averageLoss = 0.0
+        self.averageAcc = 0.0
+        self.averageValLoss = 0.0
+        self.averageValAcc = 0.0
         self.steps_per_epoch = steps_per_epoch
         self.steps = steps_per_epoch // display
         self.skipBatchesVal = skipBatchesVal
@@ -96,6 +96,10 @@ class BatchLevelPerformanceLogger(ks.callbacks.Callback):
             averaged_acc = self.averageAcc / self.steps
             averaged_ValLoss = self.averageValLoss / self.Valseen if self.Valseen > 0 else 0.0
             averaged_ValAcc = self.averageValAcc / self.Valseen if self.Valseen > 0 else 0.0
+
+            print
+            print 'average loss/acc train:', averaged_loss, averaged_acc
+            print 'average loss/acc test:', averaged_ValLoss, averaged_ValAcc
 
             batchnumber_float = (self.seen - self.steps / 2.) / float(self.steps_per_epoch) # + self.epoch - 1  # start from zero
             self.loglist.append('\n{0}\t{1}\t{2}\t{3}\t{4}\t{5}'.format(self.seen, batchnumber_float, averaged_loss, averaged_acc, averaged_ValLoss, averaged_ValAcc))

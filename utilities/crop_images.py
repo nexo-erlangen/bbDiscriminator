@@ -44,9 +44,7 @@ def crop_image(fileIN, fileOUT, start, length):
 
     wfs = np.asarray(fIN.get('wfs'))
     print 'changing length from:\t', wfs.shape[3], ' to ', length
-    # del f['wfs']
     wfs = wfs[:, :, :, start:start + length]
-    # print wfs.shape
 
     chunks_wfs = (batchsize,) + wfs.shape[1:] if compression[0] is not None else None
     print 'chunk size:\t', chunks_wfs
@@ -55,7 +53,22 @@ def crop_image(fileIN, fileOUT, start, length):
     for key in fIN.keys():
         if key in ['wfs']: continue
         temp = np.asarray(fIN.get(key))
+        # elif key in ['LXeEnergy', 'CCIs3DCluster', 'ID', 'APDEnergy', 'QValue']: continue
+        # if key in ['MCEventNumber']:
+        #     key = 'EventNumber'
+        # elif key in ['MCRunNumber']:
+        #     key = 'RunNumber'
         fOUT.create_dataset(key, data=temp, dtype=np.float32)
+
+    # fIN_NumEvents = len(np.asarray(fIN.get('MCEventNumber')))
+    # for key in ['MCEnergy', 'MCPosU', 'MCPosV', 'MCPosX', 'MCPosY', 'MCPosZ']:
+    #     if key in fIN.keys(): continue
+    #     temp = np.zeros((fIN_NumEvents,), dtype=np.float32)
+    #     fOUT.create_dataset(key, data=temp, dtype=np.float32)
+    #
+    # # IsMC = np.zeros((fIN_NumEvents,), dtype=np.float32)
+    # IsMC = np.ones((fIN_NumEvents,), dtype=np.float32)
+    # fOUT.create_dataset('IsMC', data=IsMC, dtype=np.float32)
 
     fIN.close()
     fOUT.close()

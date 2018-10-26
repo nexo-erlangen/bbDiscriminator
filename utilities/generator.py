@@ -7,6 +7,7 @@ import numpy as np
 import h5py
 import random
 import cPickle as pickle
+import os
 
 #------------- Function used for supplying images to the GPU -------------#
 def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f_size=None, yield_mc_info=0):
@@ -127,6 +128,47 @@ def read_EventInfo_from_files(files, maxNumEvents=0):
     else:
         return { key: value[ 0 : maxNumEvents ] for key,value in eventInfo.items() }
 
+def write_dict_to_hdf5_file(data, file, keys_to_write=['all']):
+    """
+    Write dict to hdf5 file
+    :param dict data: dict containing data.
+    :param string file: Full filepath of the output hdf5 file, e.g. '[/path/to/file/file.hdf5]'.
+    :param list keys_to_write: Keys that will be written to file
+    """
+    if not isinstance(data, dict) or not isinstance(file, basestring):
+        raise TypeError('passed data/file need to be dict/str. Passed type are: %s/%s'%(type(data),type(file)))
+    if 'all' in keys_to_write:
+        keys_to_write = data.keys()
+
+    fOUT = h5py.File(file, "w")
+    for key in keys_to_write:
+        print 'writing', key
+        if key not in data.keys():
+            print keys_to_write, '\n', data.keys()
+            raise ValueError('%s not in dict!'%(str(key)))
+        fOUT.create_dataset(key, data=np.asarray(data[key]), dtype=np.float32)
+    fOUT.close()
+    return
+
+def read_hdf5_file_to_dict(file, keys_to_read=['all']):
+    """
+    Write dict to hdf5 file
+    :param string file: Full filepath of the output hdf5 file, e.g. '[/path/to/file/file.hdf5]'.
+    :param list keys_to_write: Keys that will be written to file
+    :return dict data: dict containing data.
+    """
+    data = {}
+    fIN = h5py.File(file, "r")
+    if 'all' in keys_to_read:
+        keys_to_read = fIN.keys()
+    for key in keys_to_read:
+        if key not in fIN.keys():
+            print keys_to_read, '\n', fIN.keys()
+            raise ValueError('%s not in file!' % (str(key)))
+        data[key] = np.asarray(fIN.get(key))
+    fIN.close()
+    return data
+
 def predict_events(model, generator):
     X, Y_TRUE, EVENT_INFO = generator.next()
     EVENT_INFO['DNNPred'] = np.asarray(model.predict(X, 50))
@@ -134,9 +176,19 @@ def predict_events(model, generator):
     return EVENT_INFO
 
 def get_events(args, files, model, fOUT):
+    # print fOUT
+    # fOUT = os.path.splitext(fOUT)[0] + '.p'
+    # print fOUT
     try:
         if args.new: raise IOError
-        EVENT_INFO = pickle.load(open(fOUT, "rb"))
+        file_ending =  os.path.splitext(fOUT)[1]
+        if file_ending == '.p': #just for backwards compatibility
+            EVENT_INFO = pickle.load(open(fOUT, "rb"))
+            write_dict_to_hdf5_file(data=EVENT_INFO, file=(os.path.splitext(fOUT)[0]+'.hdf5'))
+        elif file_ending == '.hdf5':
+            EVENT_INFO = read_hdf5_file_to_dict(fOUT)
+        else:
+            raise ValueError('file ending should be .p/.hdf5 but is %s'%(file_ending))
         if args.events > EVENT_INFO.values()[0].shape[0]: raise IOError
     except IOError:
         events_per_batch = 50
@@ -159,7 +211,7 @@ def get_events(args, files, model, fOUT):
         EVENT_INFO['DNNPredClass'] = EVENT_INFO['DNNPred'].argmax(axis=-1)
         EVENT_INFO['DNNTrueClass'] = EVENT_INFO['DNNTrue'].argmax(axis=-1)
         EVENT_INFO['DNNPredTrueClass'] = EVENT_INFO['DNNPred'][:, 1]
-        pickle.dump(EVENT_INFO, open(fOUT, "wb"))
+        write_dict_to_hdf5_file(data=EVENT_INFO, file=fOUT)
     return EVENT_INFO
 
 def getNumEvents(files):

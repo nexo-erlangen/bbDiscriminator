@@ -16,26 +16,71 @@ plt.rc('font', size=BIGGER_SIZE)          # controls default text sizes
 # ----------------------------------------------------------
 def validation_mc_plots(args, folderOUT, data):
 
-    maskSS = (data['BDT-SS-Std'] != -2.0) & \
-             (data['BDT-SS-Uni'] != -2.0) & \
-             (data['CCIsSS'] == 1)
+    print data.keys()
+
+    maskBDT = True
+    for bdt_var in filter(lambda x: 'BDT' in x, data.keys()):
+        maskBDT = maskBDT & (data[bdt_var] != -2.0)
+
+    maskSS = maskBDT & (data['CCIsSS'] == 1)
     maskMS = np.invert(maskSS)
 
     maskROI = (np.sum(data['CCPurityCorrectedEnergy'], axis=1) > 2400.) & \
               (np.sum(data['CCPurityCorrectedEnergy'], axis=1) < 2800.)
+    # maskROI = (np.sum(data['CCCorrectedEnergy'], axis=1) > 2400.) & \
+    #           (np.sum(data['CCCorrectedEnergy'], axis=1) < 2800.)
+    # maskROI = True
 
     maskBKG = (data['DNNTrueClass'] == 0)
     maskSIG = (data['DNNTrueClass'] == 1)
 
+    # plot_energy_spectrum(fOUT=args.folderOUT + 'energy_spectrum_ROI.pdf',
+    #                      data=[(np.sum(data['CCPurityCorrectedEnergy'], axis=1)[maskROI & maskSS & maskBKG]),
+    #                            (np.sum(data['CCPurityCorrectedEnergy'], axis=1)[maskROI & maskSS & maskSIG])],
+    #                      label=['Background', 'Signal'])
+    #
+    # plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve_BDT_SS.pdf',
+    #                dataTrue=data['DNNTrueClass'][maskSS],
+    #                dataPred=[data['DNNPredTrueClass'][maskSS],
+    #                          data['BDT-SS-NoStandoff'][maskSS],
+    #                          data['BDT-SS'][maskSS]],
+    #                label=['DNN', 'BDT-Uni', 'BDT-Std'])
+    # plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve_BDT_MS.pdf',
+    #                dataTrue=data['DNNTrueClass'][(data['CCIsSS'] == 0)],
+    #                dataPred=[data['DNNPredTrueClass'][(data['CCIsSS'] == 0)],
+    #                          data['BDT-SSMS'][(data['CCIsSS'] == 0)]],
+    #                label=['DNN', 'BDT-SSMS'])
+    # plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve_BDT_SSMS.pdf',
+    #                dataTrue=data['DNNTrueClass'],
+    #                dataPred=[data['DNNPredTrueClass'],
+    #                          data['BDT-SSMS']],
+    #                label=['DNN', 'BDT-SSMS'])
+    # exit()
+
     plot_energy_spectrum(fOUT=args.folderOUT + 'energy_spectrum_ROI.pdf',
                          data=[(np.sum(data['CCPurityCorrectedEnergy'], axis=1)[maskROI & maskSS & maskBKG]),
                                (np.sum(data['CCPurityCorrectedEnergy'], axis=1)[maskROI & maskSS & maskSIG])],
-                         label=['U238+Th232', 'bb0n'])
+                         label=['Background', 'Signal'])
 
     plot_energy_spectrum(fOUT=args.folderOUT + 'energy_spectrum_MC_ROI.pdf',
                          data=[data['MCEnergy'][maskROI & maskSS & maskBKG],
                                data['MCEnergy'][maskROI & maskSS & maskSIG]],
                          label=['U238+Th232', 'bb0n'])
+
+    plot_energy_spectrum(fOUT=args.folderOUT + 'standoff_SS_ROI.pdf',
+                         data=[data['CCStandoff'][maskROI & maskSS & maskBKG],
+                               data['CCStandoff'][maskROI & maskSS & maskSIG]],
+                         label=['U238+Th232', 'bb0n'], xlabel='standoff distance [mm]')
+
+    plot_energy_spectrum(fOUT=args.folderOUT + 'standoff_MS_ROI.pdf',
+                         data=[data['CCStandoff'][maskROI & maskMS & maskBKG],
+                               data['CCStandoff'][maskROI & maskMS & maskSIG]],
+                         label=['U238+Th232', 'bb0n'], xlabel='standoff distance [mm]')
+
+    plot_energy_spectrum(fOUT=args.folderOUT + 'discriminator_SS_ROI.pdf',
+                         data=[data['BDT-DNN'][maskROI & maskSS & maskBKG],
+                               data['BDT-DNN'][maskROI & maskSS & maskSIG]],
+                         label=['Background', 'Signal'], xlabel='signal-likeness')
 
     plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve_ROI.pdf',
                    dataTrue=data['DNNTrueClass'][maskROI & maskSS],
@@ -45,36 +90,36 @@ def validation_mc_plots(args, folderOUT, data):
                              -1.0 * np.sqrt(data['MCEventSizeR']**2+data['MCEventSizeZ']**2)[maskROI & maskSS]],
                    label=['DNN', 'BDT-Uni', 'BDT-Std', 'MC 3D Size'])
 
-    plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve_MS_ROI.pdf',
-                   dataTrue=data['DNNTrueClass'][maskROI & maskMS],
-                   dataPred=[data['DNNPredTrueClass'][maskROI & maskMS],
-                             -1.0 * np.sqrt(data['MCEventSizeR'] ** 2 + data['MCEventSizeZ'] ** 2)[maskROI & maskMS]],
-                   label=['DNN', 'MC R Size'])
-
-    plot_prec_vs_recall_curve(fOUT=args.folderOUT + 'precision_vs_recall_ROI.pdf',
-                              dataTrue=data['DNNTrueClass'][maskROI & maskSS],
-                              dataPred=[data['DNNPredTrueClass'][maskROI & maskSS],
-                                        norm_discriminator(data['BDT-SS-Uni'][maskROI & maskSS]),
-                                        norm_discriminator(data['BDT-SS-Std'][maskROI & maskSS])],
-                              label=['DNN', 'BDT-Uni', 'BDT-Std'])
-
-    plot_prec_vs_recall_curve(fOUT=args.folderOUT + 'precision_vs_recall_MS_ROI.pdf',
-                              dataTrue=data['DNNTrueClass'][maskROI & maskMS],
-                              dataPred=[data['DNNPredTrueClass'][maskROI & maskMS],
-                                        -1.0 * np.sqrt(data['MCEventSizeR'] ** 2 + data['MCEventSizeZ'] ** 2)[maskROI & maskMS]],
-                              label=['DNN', 'MC Size (R)'])
-
-    plot_prec_recall_vs_thresh_curve(fOUT=args.folderOUT + 'precision_recall_vs_threshold_ROI.pdf',
-                                     dataTrue=data['DNNTrueClass'][maskROI & maskSS],
-                                     dataPred=[data['DNNPredTrueClass'][maskROI & maskSS],
-                                               norm_discriminator(data['BDT-SS-Uni'][maskROI & maskSS]),
-                                               norm_discriminator(data['BDT-SS-Std'][maskROI & maskSS])],
-                                     label=['DNN', 'BDT-Uni', 'BDT-Std'])
+    plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve_ROI_BDT+DNN.pdf',
+                   dataTrue=data['DNNTrueClass'][maskROI & maskSS],
+                   dataPred=[data['DNNPredTrueClass'][maskROI & maskSS],
+                             data['BDT-SS-Std'][maskROI & maskSS],
+                             data['BDT-DNN'][maskROI & maskSS]],
+                   label=['DNN', 'BDT-Std', 'DNN+Stand'])
+    #
+    # plot_prec_vs_recall_curve(fOUT=args.folderOUT + 'precision_vs_recall_ROI.pdf',
+    #                           dataTrue=data['DNNTrueClass'][maskROI & maskSS],
+    #                           dataPred=[data['DNNPredTrueClass'][maskROI & maskSS],
+    #                                     norm_discriminator(data['BDT-SS-Uni'][maskROI & maskSS]),
+    #                                     norm_discriminator(data['BDT-SS-Std'][maskROI & maskSS])],
+    #                           label=['DNN', 'BDT-Uni', 'BDT-Std'])
+    #
+    # plot_prec_vs_recall_curve(fOUT=args.folderOUT + 'precision_vs_recall_MS_ROI.pdf',
+    #                           dataTrue=data['DNNTrueClass'][maskROI & maskMS],
+    #                           dataPred=[data['DNNPredTrueClass'][maskROI & maskMS],
+    #                                     -1.0 * np.sqrt(data['MCEventSizeR'] ** 2 + data['MCEventSizeZ'] ** 2)[maskROI & maskMS]],
+    #                           label=['DNN', 'MC Size (R)'])
+    #
+    # plot_prec_recall_vs_thresh_curve(fOUT=args.folderOUT + 'precision_recall_vs_threshold_ROI.pdf',
+    #                                  dataTrue=data['DNNTrueClass'][maskROI & maskSS],
+    #                                  dataPred=[data['DNNPredTrueClass'][maskROI & maskSS],
+    #                                            norm_discriminator(data['BDT-SS-Uni'][maskROI & maskSS]),
+    #                                            norm_discriminator(data['BDT-SS-Std'][maskROI & maskSS])],
+    #                                  label=['DNN', 'BDT-Uni', 'BDT-Std'])
 
     # TODO BELOW IS TEST
 
     # threshold values for 90% signal efficiency
-
     bdt_ss_std = get_thresh_at_sig_eff_or_at_bkg_rej(data['DNNTrueClass'][maskROI & maskSS],
                                                      data['BDT-SS-Std'][maskROI & maskSS],
                                                      cut_value=0.9, mode='sig_eff')
@@ -84,60 +129,98 @@ def validation_mc_plots(args, folderOUT, data):
     dnn_ss_uni = get_thresh_at_sig_eff_or_at_bkg_rej(data['DNNTrueClass'][maskROI & maskSS],
                                                      data['DNNPredTrueClass'][maskROI & maskSS],
                                                      cut_value=0.9, mode='sig_eff')
+    dnn_ss_stand = get_thresh_at_sig_eff_or_at_bkg_rej(data['DNNTrueClass'][maskROI & maskSS],
+                                                     data['BDT-DNN'][maskROI & maskSS],
+                                                     cut_value=0.9, mode='sig_eff')
 
-    # plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventSize_BDT_Std_3D-90Sig.pdf',
-    #                          data=np.sqrt(data['MCEventSizeR'] ** 2 + data['MCEventSizeZ'] ** 2)[maskROI & maskSS],
-    #                          discr_mask=data['BDT-SS-Std'][maskROI & maskSS],
-    #                          sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=bdt_ss_std,
-    #                          discr_range=[0, 20], discr_label='BDT', data_label='True Event Size [mm]')
-    #
-    # plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventSize_BDT_Uni_3D-90Sig.pdf',
-    #                          data=np.sqrt(data['MCEventSizeR'] ** 2 + data['MCEventSizeZ'] ** 2)[maskROI & maskSS],
-    #                          discr_mask=data['BDT-SS-Uni'][maskROI & maskSS],
-    #                          sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=bdt_ss_uni,
-    #                          discr_range=[0, 20], discr_label='BDT', data_label='True Event Size [mm]')
-    #
-    # plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventSize_DNN_3D-90Sig.pdf',
-    #                          data=np.sqrt(data['MCEventSizeR']**2+data['MCEventSizeZ']**2)[maskROI & maskSS],
-    #                          discr_mask=data['DNNPredTrueClass'][maskROI & maskSS],
-    #                          sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=dnn_ss_uni,
-    #                          discr_range=[0, 20], discr_label='DNN', data_label='True Event Size [mm]')
-    #
-    # plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_BDT_Std_R-90Sig.pdf',
-    #                          data=np.sqrt(data['MCPosX'] ** 2 + data['MCPosY'] ** 2)[maskROI & maskSS],
-    #                          discr_mask=data['BDT-SS-Std'][maskROI & maskSS],
-    #                          sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=bdt_ss_std,
-    #                          discr_range=[0, 180], discr_label='BDT', data_label='True Event Position R [mm]')
-    #
-    # plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_BDT_Uni_R-90Sig.pdf',
-    #                          data=np.sqrt(data['MCPosX'] ** 2 + data['MCPosY'] ** 2)[maskROI & maskSS],
-    #                          discr_mask=data['BDT-SS-Uni'][maskROI & maskSS],
-    #                          sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=bdt_ss_uni,
-    #                          discr_range=[0, 180], discr_label='BDT', data_label='True Event Position R [mm]')
-    #
-    # plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_DNN_R-90Sig.pdf',
-    #                          data=np.sqrt(data['MCPosX'] ** 2 + data['MCPosY'] ** 2)[maskROI & maskSS],
-    #                          discr_mask=data['DNNPredTrueClass'][maskROI & maskSS],
-    #                          sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=dnn_ss_uni,
-    #                          discr_range=[0, 180], discr_label='DNN', data_label='True Event Position R [mm]')
-    #
-    # plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_BDT_Std_Z-90Sig.pdf',
-    #                          data=data['MCPosZ'][maskROI & maskSS],
-    #                          discr_mask=data['BDT-SS-Std'][maskROI & maskSS],
-    #                          sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=bdt_ss_std,
-    #                          discr_range=[-180, 180], discr_label='BDT', data_label='True Event Position Z [mm]')
-    #
-    # plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_BDT_Uni_Z-90Sig.pdf',
-    #                          data=data['MCPosZ'][maskROI & maskSS],
-    #                          discr_mask=data['BDT-SS-Uni'][maskROI & maskSS],
-    #                          sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=bdt_ss_uni,
-    #                          discr_range=[-180, 180], discr_label='BDT', data_label='True Event Position Z [mm]')
-    #
-    # plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_DNN_Z-90Sig.pdf',
-    #                          data=(np.sum(data['CCPurityCorrectedEnergy'], axis=1))[maskROI & maskSS],
-    #                          discr_mask=data['DNNPredTrueClass'][maskROI & maskSS],
-    #                          sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=dnn_ss_uni,
-    #                          discr_range=[-180, 180], discr_label='DNN', data_label='True Event Position Z [mm]')
+
+    plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventSize_BDT_Std_3D-90Sig.pdf',
+                             data=np.sqrt(data['MCEventSizeR'] ** 2 + data['MCEventSizeZ'] ** 2)[maskROI & maskSS],
+                             discr_mask=data['BDT-SS-Std'][maskROI & maskSS],
+                             sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=bdt_ss_std,
+                             discr_range=[0, 20], discr_label='BDT', data_label='True Event Size [mm]')
+
+    plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventSize_BDT_Uni_3D-90Sig.pdf',
+                             data=np.sqrt(data['MCEventSizeR'] ** 2 + data['MCEventSizeZ'] ** 2)[maskROI & maskSS],
+                             discr_mask=data['BDT-SS-Uni'][maskROI & maskSS],
+                             sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=bdt_ss_uni,
+                             discr_range=[0, 20], discr_label='BDT', data_label='True Event Size [mm]')
+
+    plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventSize_DNN_3D-90Sig.pdf',
+                             data=np.sqrt(data['MCEventSizeR']**2+data['MCEventSizeZ']**2)[maskROI & maskSS],
+                             discr_mask=data['DNNPredTrueClass'][maskROI & maskSS],
+                             sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=dnn_ss_uni,
+                             discr_range=[0, 20], discr_label='DNN', data_label='True Event Size [mm]')
+
+    plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventSize_DNN_Stand_3D-90Sig.pdf',
+                             data=np.sqrt(data['MCEventSizeR'] ** 2 + data['MCEventSizeZ'] ** 2)[maskROI & maskSS],
+                             discr_mask=data['BDT-DNN'][maskROI & maskSS],
+                             sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=dnn_ss_stand,
+                             discr_range=[0, 20], discr_label='DNN+Stand', data_label='True Event Size [mm]')
+
+
+    plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_BDT_Std_R-90Sig.pdf',
+                             data=np.sqrt(data['MCPosX'] ** 2 + data['MCPosY'] ** 2)[maskROI & maskSS],
+                             discr_mask=data['BDT-SS-Std'][maskROI & maskSS],
+                             sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=bdt_ss_std,
+                             discr_range=[0, 180], discr_label='BDT', data_label='True Event Position R [mm]')
+
+    plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_BDT_Uni_R-90Sig.pdf',
+                             data=np.sqrt(data['MCPosX'] ** 2 + data['MCPosY'] ** 2)[maskROI & maskSS],
+                             discr_mask=data['BDT-SS-Uni'][maskROI & maskSS],
+                             sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=bdt_ss_uni,
+                             discr_range=[0, 180], discr_label='BDT', data_label='True Event Position R [mm]')
+
+    plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_DNN_R-90Sig.pdf',
+                             data=np.sqrt(data['MCPosX'] ** 2 + data['MCPosY'] ** 2)[maskROI & maskSS],
+                             discr_mask=data['DNNPredTrueClass'][maskROI & maskSS],
+                             sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=dnn_ss_uni,
+                             discr_range=[0, 180], discr_label='DNN', data_label='True Event Position R [mm]')
+
+    plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_DNN_Stand_R-90Sig.pdf',
+                             data=np.sqrt(data['MCPosX'] ** 2 + data['MCPosY'] ** 2)[maskROI & maskSS],
+                             discr_mask=data['BDT-DNN'][maskROI & maskSS],
+                             sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=dnn_ss_stand,
+                             discr_range=[0, 180], discr_label='DNN+Stand', data_label='True Event Position R [mm]')
+
+
+    plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_BDT_Std_Z-90Sig.pdf',
+                             data=data['MCPosZ'][maskROI & maskSS],
+                             discr_mask=data['BDT-SS-Std'][maskROI & maskSS],
+                             sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=bdt_ss_std,
+                             discr_range=[-180, 180], discr_label='BDT', data_label='True Event Position Z [mm]')
+
+    plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_BDT_Uni_Z-90Sig.pdf',
+                             data=data['MCPosZ'][maskROI & maskSS],
+                             discr_mask=data['BDT-SS-Uni'][maskROI & maskSS],
+                             sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=bdt_ss_uni,
+                             discr_range=[-180, 180], discr_label='BDT', data_label='True Event Position Z [mm]')
+
+    plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_DNN_Z-90Sig.pdf',
+                             data=data['MCPosZ'][maskROI & maskSS],
+                             discr_mask=data['DNNPredTrueClass'][maskROI & maskSS],
+                             sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=dnn_ss_uni,
+                             discr_range=[-180, 180], discr_label='DNN', data_label='True Event Position Z [mm]')
+
+    plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_DNN_Stand_Z-90Sig.pdf',
+                             data=data['MCPosZ'][maskROI & maskSS],
+                             discr_mask=data['BDT-DNN'][maskROI & maskSS],
+                             sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=dnn_ss_stand,
+                             discr_range=[-180, 180], discr_label='DNN+Stand', data_label='True Event Position Z [mm]')
+
+
+    plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_DNN_U-90Sig.pdf',
+                             data=data['MCPosU'][maskROI & maskSS],
+                             discr_mask=data['DNNPredTrueClass'][maskROI & maskSS],
+                             sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=dnn_ss_uni,
+                             discr_range=[-180, 180], discr_label='DNN', data_label='True Event Position U [mm]')
+
+    plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_DNN_V-90Sig.pdf',
+                             data=data['MCPosV'][maskROI & maskSS],
+                             discr_mask=data['DNNPredTrueClass'][maskROI & maskSS],
+                             sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=dnn_ss_uni,
+                             discr_range=[-180, 180], discr_label='DNN', data_label='True Event Position V [mm]')
+
 
     plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventEnergy_BDT_Std-90Sig.pdf',
                              data=(np.sum(data['CCCorrectedEnergy'], axis=1))[maskROI & maskSS],
@@ -156,6 +239,13 @@ def validation_mc_plots(args, folderOUT, data):
                              discr_mask=data['DNNPredTrueClass'][maskROI & maskSS],
                              sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=dnn_ss_uni,
                              discr_range=[2400, 2800], discr_label='DNN', data_label='uncalibrated corrected energy [keV]')
+
+    plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventEnergy_DNN_Stand-90Sig.pdf',
+                             data=(np.sum(data['CCCorrectedEnergy'], axis=1))[maskROI & maskSS],
+                             discr_mask=data['BDT-DNN'][maskROI & maskSS],
+                             sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=dnn_ss_stand,
+                             discr_range=[2400, 2800], discr_label='DNN+Stand',
+                             data_label='uncalibrated corrected energy [keV]')
 
 
 
@@ -176,7 +266,7 @@ def validation_mc_plots(args, folderOUT, data):
 
     plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_vs_threshold-ROI.pdf',
                                 data=[data['DNNPredTrueClass'][maskBKG & maskROI],
-                                      data['DNNPredTrueClass'][maskSIG]],
+                                      data['DNNPredTrueClass'][maskSIG & maskROI]],
                                 label=['Background', 'Signal'])
 
     plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_SS_vs_threshold-ROI.pdf',
@@ -189,8 +279,38 @@ def validation_mc_plots(args, folderOUT, data):
                                       data['DNNPredTrueClass'][maskSIG & maskROI & maskMS]],
                                 label=['Background', 'Signal'])
 
+    plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_vs_threshold-ROI-DNN-BDT.pdf',
+                                data=[data['DNNPredTrueClass'][maskBKG & maskROI],
+                                      data['DNNPredTrueClass'][maskSIG & maskROI],
+                                      norm_discriminator(data['BDT-DNN'][maskBKG & maskROI]),
+                                      norm_discriminator(data['BDT-DNN'][maskSIG & maskROI])],
+                                label=['Background', 'Signal', 'Bkg (DNN+Stand)', 'Sig (DNN+Stand)'])
 
-    # exit()
+    plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_SS_vs_threshold-ROI-DNN-BDT.pdf',
+                                data=[data['DNNPredTrueClass'][maskBKG & maskROI & maskSS],
+                                      data['DNNPredTrueClass'][maskSIG & maskROI & maskSS],
+                                      norm_discriminator(data['BDT-DNN'][maskBKG & maskROI & maskSS]),
+                                      norm_discriminator(data['BDT-DNN'][maskSIG & maskROI & maskSS])],
+                                label=['Background', 'Signal', 'Bkg (DNN+Stand)', 'Sig (DNN+Stand)'])
+
+    plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_MS_vs_threshold-ROI-DNN-BDT.pdf',
+                                data=[data['DNNPredTrueClass'][maskBKG & maskROI & maskMS],
+                                      data['DNNPredTrueClass'][maskSIG & maskROI & maskMS],
+                                      norm_discriminator(data['BDT-DNN'][maskBKG & maskROI & maskMS]),
+                                      norm_discriminator(data['BDT-DNN'][maskSIG & maskROI & maskMS])],
+                                label=['Background', 'Signal', 'Bkg (DNN+Stand)', 'Sig (DNN+Stand)'])
+
+    plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve.pdf',
+                   dataTrue=[data['DNNTrueClass'][maskSS],
+                             data['DNNTrueClass'][maskMS],
+                             data['DNNTrueClass']],
+                   dataPred=[data['DNNPredTrueClass'][maskSS],
+                             data['DNNPredTrueClass'][maskMS],
+                             data['DNNPredTrueClass']],
+                   label=['DNN SS', 'DNN MS', 'DNN SS+MS'])
+
+
+    exit()
 
     from sklearn.metrics import confusion_matrix, precision_score, recall_score, \
         f1_score, accuracy_score, classification_report, precision_recall_curve, roc_curve, roc_auc_score
@@ -336,11 +456,18 @@ def plot_ROC_curve(fOUT, dataTrue, dataPred, label):
     else:
         raise TypeError('passed variable need to be list/np.ndarray')
 
+    if isinstance(dataTrue, list): pass
+    elif isinstance(dataTrue, np.ndarray):
+        dataTrue = [dataTrue]*len(dataPred)
+    else:
+        raise TypeError('passed variable need to be list/np.ndarray')
+
     plt.clf()
+    # plt.plot([0.9, 0.9], [0, 1], 'k-', lw=0.5)
     plt.plot([0, 1], [0.9, 0.9], 'k-', lw=0.5)
     for i in xrange(len(dataPred)):
-        roc_i = roc_curve(dataTrue, dataPred[i])
-        roc_auc_i = roc_auc_score(dataTrue, dataPred[i])
+        roc_i = roc_curve(dataTrue[i], dataPred[i])
+        roc_auc_i = roc_auc_score(dataTrue[i], dataPred[i])
         plt.plot(1.0-roc_i[0], roc_i[1], label='%s (%.1f %%)' % (label[i], (roc_auc_i-0.5) * 100.))
     plt.plot([1, 0], [0, 1], 'k--')
     plt.xlabel('Background rejection')
@@ -374,6 +501,7 @@ def plot_histogram_vs_threshold(fOUT, data, label):
         plt.hist(data[i], label='%s' % (label[i]), **kwargs)
     plt.xlabel('signal-likeness')
     plt.legend(loc='best')
+    # plt.legend(loc='upper left')
     plt.xlim([0, 1])
     plt.ylim(ymin=0)
     plt.savefig(fOUT, bbox_inches='tight')
@@ -508,7 +636,7 @@ def plot_Mikes_plot_idea_new(fOUT, data, discr_mask, sig_or_bkg, discr_thresh, d
     plt.close()
     return
 
-def plot_energy_spectrum(fOUT, data, label):
+def plot_energy_spectrum(fOUT, data, label, xlabel='uncalibrated energy [keV]'):
     if isinstance(data, list):
         pass
     elif isinstance(data, np.ndarray):
@@ -523,7 +651,7 @@ def plot_energy_spectrum(fOUT, data, label):
     print rmin, rmax
     for i in xrange(len(data)):
         plt.hist(data[i], bins=100, range=(rmin, rmax), facecolor="None", histtype='step', lw=2., label='%s' % (label[i]), density=True)
-    plt.xlabel('uncalibrated energy [keV]')
+    plt.xlabel(xlabel)
     plt.ylabel('normed counts [#]')
     plt.legend(loc='best')
     plt.xlim([rmin, rmax])
