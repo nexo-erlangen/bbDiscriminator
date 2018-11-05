@@ -13,10 +13,12 @@ from plot_scripts.plot_traininghistory import *
 from plot_scripts.plot_validation import *
 
 def main(args):
-    frac_train = {'mixedUniMC': 0.90}
-    frac_val   = {'mixedUniMC': 0.10}
+    # frac_train = {'mixedUniMC': 0.90}
+    # frac_val   = {'mixedUniMC': 0.10}
     # frac_train = {'mixedAllVesselMC': 0.90}
     # frac_val = {'mixedAllVesselMC': 0.10}
+    frac_train = {'mixedreducedMC': 0.90}
+    frac_val = {'mixedreducedMC': 0.10}
 
     splitted_files = splitFiles(args, mode=args.mode, frac_train=frac_train, frac_val=frac_val)
 
@@ -57,15 +59,19 @@ def executeCNN(args, files, var_targets, nn_arch, batchsize, epoch, mode, n_gpu=
 
     if epoch[0] == 0:
         if nn_arch == 'DCNN':
-            if args.wires in ['U', 'V']:        model = create_shared_dcnn_network_2()
-            elif args.wires in ['UV', 'U+V']:   model = create_shared_dcnn_network_4()
+            if args.wires in ['U', 'V', 'small']:
+                model = create_shared_dcnn_network_2()
+            elif args.wires in ['UV', 'U+V']:
+                model = create_shared_dcnn_network_4()
             else: raise ValueError('passed wire specifier need to be U/V/UV')
         elif nn_arch == 'ResNet':
             raise ValueError('Currently, this is not implemented')
         elif nn_arch == 'Inception':
-            if args.wires in ['U', 'V']:        model = create_shared_inception_network_2()
-            elif args.wires in ['UV', 'U+V']:   model = create_shared_inception_network_4()
-            else: raise ValueError('passed wire specifier need to be U/V/UV')
+            if args.wires in ['U', 'V', 'small']:
+                model = create_shared_inception_network_2() #create_shared_inception_network_2_extra_input() # TODO model = create_shared_inception_network_2()
+            elif args.wires in ['UV', 'U+V']:
+                model = create_shared_inception_network_2() # TODO model = create_shared_inception_network_4()
+            else: raise ValueError('passed wire specifier need to be U/V/U+V/UV/small')
         elif nn_arch == 'Conv_LSTM':
             raise ValueError('Currently, this is not implemented')
         else:
@@ -94,6 +100,7 @@ def executeCNN(args, files, var_targets, nn_arch, batchsize, epoch, mode, n_gpu=
             print 'Compiling Keras model\n'
             model.compile(
                 loss='categorical_crossentropy',
+                # loss_weights=[1., 0.7, 0.1],
                 optimizer=optimizer,
                 metrics=['accuracy'])
             # TODO Add Precision/Recall to metric, see:
@@ -221,7 +228,7 @@ def load_trained_model(args):
     return model
 
 def LRschedule_stepdecay(epoch):
-    initial_lrate = 0.01 # 0.001
+    initial_lrate = 0.01 #0.01 # 0.001
     step_drop = 0.5
     step_epoch = 5.0
     step_decay_weight = 0.9

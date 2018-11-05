@@ -9,13 +9,14 @@ import os
 from sys import path
 path.append('/home/hpc/capm/sn0515/bbDiscriminator')
 import cPickle as pickle
+from utilities.generator import *
 
 ##################################################################################################
 
-folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181002-0836/0validation/ShapeAgreement-014/'
+folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181022-1358/181023-1728/0validation/ShapeAgreement-067/'
 files = {}
-files['1'] = '../Th228-mc-S5-014-UV/events_014_Th228-mc-S5-UV.p'
-files['2'] = '../Th228-data-S5-014-UV/events_014_Th228-data-S5-UV.p'
+files['1'] = '../Th228-mc-S5-067-U/events_067_Th228-mc-S5-U.hdf5'
+files['2'] = '../Th228-data-S5-067-U/events_067_Th228-data-S5-U.hdf5'
 
 # folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/180906-1938/0validation/ShapeAgreement/'
 # files = {}
@@ -27,7 +28,8 @@ discriminator = 'signal-likeness'
 def main():
     data = {}
     for key, model in files.items():
-        data[key] = pickle.load(open(folderRUNS + files[key], "rb"))
+        data[key] = read_hdf5_file_to_dict(folderRUNS + files[key])
+        # data[key] = pickle.load(open(folderRUNS + files[key], "rb"))
 
     mask1 = (data['1']['CCIsSS'] == 1)
     mask2 = (data['2']['CCIsSS'] == 1)
@@ -106,7 +108,7 @@ def main():
             'density': False
         }
 
-        e_limit = 2000.
+        e_limit = 1500. #2000.
         maskE1 = np.sum(data['1']['CCPurityCorrectedEnergy'], axis=1) > e_limit
         maskE2 = np.sum(data['2']['CCPurityCorrectedEnergy'], axis=1) > e_limit
         make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & maskE1] , data['2']['DNNPredTrueClass'][mask_2y & mask2 & maskE2] , title, '%s (E gr %d)' % (discriminator, e_limit), **kwargs)

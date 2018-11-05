@@ -28,13 +28,19 @@ def main():
     print 'Number of Files:\t', len(files)
     print
 
-    offset = 512
-    start = 1000
+    offset = 0 # 512
+    start = 0 # 1000
     length = 350
+
+    # for i, file in enumerate(files):
+    #     print 'cropping file:\t\t', file, 'to', str(i+18), '.hdf5'
+    #     crop_image(folderIN+file, folderOUT+str(i+18)+'.hdf5', start=start-offset, length=length)
+    #     # break
 
     for file in files:
         print 'cropping file:\t\t', file
         crop_image(folderIN+file, folderOUT+file, start=start-offset, length=length)
+    #     break
 
 
 def crop_image(fileIN, fileOUT, start, length):

@@ -47,8 +47,8 @@ def parseInput():
     parser.add_argument('-w', '--weights', dest='num_weights', type=int, default=0, help='Load weights from Epoch')
     parser.add_argument('-s', '--source', dest='sources', default=['mixed'], nargs="*",
                         choices=['mixed', 'bb0n', 'bb0nE', 'bb2n', 'gamma', 'Th228', 'Th232', 'U238', 'Xe137', 'Co60', 'Ra226'], help='sources for training/validation')
-    parser.add_argument('-p', '--position', dest='position', default=['AllVessel'], nargs='*', choices=['Uni', 'S2', 'S5', 'S8', 'AllVessel'], help='source position')
-    parser.add_argument('-wp', '--wires', type=str, dest='wires', default='U', choices=['U', 'V', 'UV', 'U+V'], help='select wire planes')
+    parser.add_argument('-p', '--position', dest='position', default=['AllVessel'], nargs='*', choices=['Uni', 'S2', 'S5', 'S8', 'AllVessel', 'reduced'], help='source position')
+    parser.add_argument('-wp', '--wires', type=str, dest='wires', default='U', choices=['U', 'V', 'UV', 'U+V', 'small'], help='select wire planes')
     parser.add_argument('-v', '--valid', dest='mode', default='train', choices=['train', 'mc', 'data'], help='mode of operation (train/eval (mc/data))')
     parser.add_argument('-l', '--log', type=str, dest='log', default='', nargs='*', help='Specify settings used for training to distinguish between runs')
     parser.add_argument('--tb', dest='tb_logger', action='store_true', help='activate tensorboard logger')

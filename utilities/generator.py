@@ -36,8 +36,9 @@ def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f
 
     if wires == 'U':    wireindex = [0, 2]
     elif wires == 'V':  wireindex = [1, 3]
-    elif wires in ['UV', 'U+V']: wireindex= slice(4) #pass #wireindex = [0, 1, 2, 3]
-    else: raise ValueError('passed wire specifier need to be U/V/UV')
+    elif wires == 'small':  wireindex = slice(2)
+    elif wires in ['UV', 'U+V']: wireindex= slice(4)
+    else: raise ValueError('passed wire specifier need to be U/V/UV/small. Not: %s'%(wires))
 
     eventInfo = {}
     while 1:
@@ -45,11 +46,6 @@ def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f
         for filename in files:
             f = h5py.File(str(filename), "r")
             if f_size is None: f_size = getNumEvents(filename)
-                # warnings.warn( 'f_size=None could produce unexpected results if the f_size used in fit_generator(steps=int(f_size / batchsize)) with epochs > 1 '
-                #     'is not equal to the f_size of the true .h5 file. Should be ok if you use the tb_callback.')
-
-            lst = np.arange(0, f_size, batchsize)
-            random.shuffle(lst)
 
             # filter the labels we don't want for now
             for key in f.keys():
@@ -58,27 +54,48 @@ def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f
             ys = encode_targets(eventInfo, f_size, class_type)
             ys = ks.utils.to_categorical(ys, 2) #convert to one-hot vectors
 
+            # ss = np.argwhere(eventInfo['CCIsSS'] == 1)
+            # print ss.shape
+            # print eventInfo['CCIsSS'].shape
+            # for i in range(40):
+            #     print i, eventInfo['CCIsSS'][i], ss[i]
+            # exit()
+
+            lst = np.arange(0, f_size, batchsize)
+            random.shuffle(lst)
+
             for i in lst:
                 if not yield_mc_info == 2:
-                    if wires in ['U', 'V', 'UV', 'U+V']:
-                        xs_i = f['wfs'][i: i + batchsize, wireindex]
-                    else: raise ValueError('passed wire specifier need to be U/V/UV')
-                    xs_i = np.swapaxes(xs_i, 0, 1)
-                    xs_i = np.swapaxes(xs_i, 2, 3)
+                    xs_i = f['wfs'][i: i + batchsize, wireindex]
+
+                    # xs_i = np.swapaxes(xs_i, 0, 1)
+                    # xs_i = np.swapaxes(xs_i, 2, 3)
 
                     # print xs_i.shape
-                    # xs_i = np.reshape(xs_i, (batchsize, 152, 350, -1))
-                    # xs_i = np.swapaxes(xs_i, 1, 2)
+                    # xs_i = np.swapaxes(xs_i, 1, 3)
+
+                    xs_i = np.reshape(xs_i, (batchsize, 76, 350, -1))
+                    xs_i = np.swapaxes(xs_i, 1, 2)
+
                     # xs_i = np.squeeze(xs_i)
                     # print xs_i.shape
                     # exit()
 
                     ys_i = ys[ i : i + batchsize ]
+                    xs_i_aux = np.dstack((eventInfo['CCPosU'][i: i + batchsize],
+                                          eventInfo['CCPosV'][i: i + batchsize],
+                                          eventInfo['CCPosZ'][i: i + batchsize],
+                                          eventInfo['CCCorrectedEnergy'][i: i + batchsize]))
 
+
+                # if yield_mc_info == 0: yield (xs_i_aux, ys_i)
+                # elif yield_mc_info == 1: yield (xs_i_aux, ys_i) + ({key: eventInfo[key][i: i + batchsize] for key in eventInfo.keys()},)
+                if yield_mc_info == 0: yield ([xs_i, xs_i_aux], [ys_i, ys_i, ys_i])
+                elif yield_mc_info == 1: yield ([xs_i, xs_i_aux], [ys_i, ys_i, ys_i]) + ({key: eventInfo[key][i: i + batchsize] for key in eventInfo.keys()},)
                 # if yield_mc_info == 0: yield (xs_i, ys_i)
                 # elif yield_mc_info == 1: yield (xs_i, ys_i) + ({key: eventInfo[key][i: i + batchsize] for key in eventInfo.keys()},)
-                if   yield_mc_info == 0:    yield (list(xs_i), ys_i)
-                elif yield_mc_info == 1:    yield (list(xs_i), ys_i) + ({ key: eventInfo[key][i: i + batchsize] for key in eventInfo.keys() },)
+                # if   yield_mc_info == 0:    yield (list(xs_i), ys_i)
+                # elif yield_mc_info == 1:    yield (list(xs_i), ys_i) + ({ key: eventInfo[key][i: i + batchsize] for key in eventInfo.keys() },)
                 elif yield_mc_info == 2:    yield { key: eventInfo[key][i: i + batchsize] for key in eventInfo.keys() }
                 else:   raise ValueError("Wrong argument for yield_mc_info (0/1/2)")
             f.close()  # this line of code is actually not reached if steps=f_size/batchsize
@@ -173,6 +190,8 @@ def predict_events(model, generator):
     X, Y_TRUE, EVENT_INFO = generator.next()
     EVENT_INFO['DNNPred'] = np.asarray(model.predict(X, 50))
     EVENT_INFO['DNNTrue'] = np.asarray(Y_TRUE)
+    if len(EVENT_INFO['DNNTrue'].shape) == 3: EVENT_INFO['DNNTrue'] = np.swapaxes(EVENT_INFO['DNNTrue'], 0, 1)
+    if len(EVENT_INFO['DNNPred'].shape) == 3: EVENT_INFO['DNNPred'] = np.swapaxes(EVENT_INFO['DNNPred'], 0, 1)
     return EVENT_INFO
 
 def get_events(args, files, model, fOUT):
@@ -210,7 +229,12 @@ def get_events(args, files, model, fOUT):
         # For now, only class probabilities. For final class predictions, do y_classes = y_prob.argmax(axis=-1)
         EVENT_INFO['DNNPredClass'] = EVENT_INFO['DNNPred'].argmax(axis=-1)
         EVENT_INFO['DNNTrueClass'] = EVENT_INFO['DNNTrue'].argmax(axis=-1)
-        EVENT_INFO['DNNPredTrueClass'] = EVENT_INFO['DNNPred'][:, 1]
+        EVENT_INFO['DNNPredTrueClass'] = EVENT_INFO['DNNPred'][..., 1]
+
+        for i in range(100):
+            print EVENT_INFO['DNNPredTrueClass'][(EVENT_INFO['CCIsSS'] == 1)][i]
+        exit()
+
         write_dict_to_hdf5_file(data=EVENT_INFO, file=fOUT)
     return EVENT_INFO
 
@@ -223,7 +247,7 @@ def getNumEvents(files):
     counter = 0
     for filename in files:
         f = h5py.File(str(filename), 'r')
-        counter += f['MCEventNumber'].shape[0]
+        counter += f.values()[0].shape[0]
         f.close()
     return counter
 

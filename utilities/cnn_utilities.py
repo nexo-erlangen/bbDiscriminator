@@ -82,14 +82,19 @@ class BatchLevelPerformanceLogger(ks.callbacks.Callback):
 
     def on_batch_end(self, batch, logs={}):
         self.seen += 1
+        # self.averageLoss += logs.get('Output_loss')
+        # self.averageAcc += logs.get('Output_acc')
         self.averageLoss += logs.get('loss')
         self.averageAcc += logs.get('acc')
 
         if self.seen % self.skipBatchesVal == 0:
             self.Valseen += 1
-            valLoss, valAcc = tuple(self.model.evaluate_generator(self.genVal, steps=1))
-            self.averageValLoss += valLoss
-            self.averageValAcc += valAcc
+            # print self.model.metrics_names
+            val = self.model.evaluate_generator(self.genVal, steps=1)
+            # self.averageValLoss += val[self.model.metrics_names.index('Output_loss')]
+            # self.averageValAcc += val[self.model.metrics_names.index('Output_acc')]
+            self.averageValLoss += val[self.model.metrics_names.index('loss')]
+            self.averageValAcc += val[self.model.metrics_names.index('acc')]
 
         if self.seen % self.steps == 0:
             averaged_loss = self.averageLoss / self.steps

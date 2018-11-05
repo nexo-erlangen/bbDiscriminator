@@ -14,11 +14,12 @@ from utilities import generator as gen
 TimeOffset = 1000
 
 def main():
-    folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_Uni_MC_P2/'
-    folderOUT = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Waveforms/'
+    # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_Uni_MC_P2/'
+    folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_reduced_MC_P2/'
+    folderOUT = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Waveforms/reduced/'
     files = [os.path.join(folderIN, f) for f in os.listdir(folderIN) if os.path.isfile(os.path.join(folderIN, f)) and '.hdf5' in f]
     number = 50
-    generator = gen.generate_batches_from_files(files, 1, class_type=None, f_size=None, yield_mc_info=1)
+    generator = gen.generate_batches_from_files(files, 1, wires='small', class_type=None, f_size=None, yield_mc_info=1)
     for idx in xrange(number):
         wf, _, eventInfo = generator.next()
         wf = np.asarray(wf)
@@ -29,7 +30,8 @@ def main():
         elif eventInfo['ID'] == 2: particleID = 'Electron'
 
         print 'plot waveform \t', idx
-        if wf.shape[0] == 2: plot_waveforms_U(np.asarray(wf), idx, particleID, eventInfo['LXeEnergy'], folderOUT)
+        if wf.shape[0] == 2: #plot_waveforms_U(np.asarray(wf), idx, particleID, eventInfo['LXeEnergy'], folderOUT)
+            plot_waveforms_U(np.asarray(wf), idx, particleID, 0.0, folderOUT)
         elif wf.shape[0] == 4: plot_waveforms_UV(np.asarray(wf), idx, particleID, eventInfo['LXeEnergy'], folderOUT)
         else: ValueError('strange waveform shape: %s'%(wf.shape))
     return
