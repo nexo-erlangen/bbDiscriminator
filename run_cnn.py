@@ -13,12 +13,12 @@ from plot_scripts.plot_traininghistory import *
 from plot_scripts.plot_validation import *
 
 def main(args):
-    # frac_train = {'mixedUniMC': 0.90}
-    # frac_val   = {'mixedUniMC': 0.10}
+    frac_train = {'mixedUniMC': 0.90}
+    frac_val   = {'mixedUniMC': 0.10}
     # frac_train = {'mixedAllVesselMC': 0.90}
     # frac_val = {'mixedAllVesselMC': 0.10}
-    frac_train = {'mixedreducedMC': 0.90}
-    frac_val = {'mixedreducedMC': 0.10}
+    # frac_train = {'mixedreducedMC': 0.90}
+    # frac_val = {'mixedreducedMC': 0.10}
 
     splitted_files = splitFiles(args, mode=args.mode, frac_train=frac_train, frac_val=frac_val)
 
@@ -157,11 +157,16 @@ def fit_model(args, model, files, batchsize, var_targets, epoch, shuffle, n_even
     :param None/int n_events: For testing purposes if not the whole .h5 file should be used for training.
     :param bool tb_logger: Declares if a tb_callback during fit_generator should be used (takes long time to save the tb_log!).
     """
+    gen_kwargs = {
+        'batchsize': batchsize,
+        'wires': args.wires,
+        'class_type': var_targets,
+        'select_dict': args.select_dict
+    }
 
-    train_steps_per_epoch = int(getNumEvents(files['train']) / batchsize)
-    # validation_steps = int(min([getNumEvents(files['val']), 5000]) / batchsize)
-    validation_steps = int(getNumEvents(files['val']) / batchsize)
-    genVal = generate_batches_from_files(files['val'], batchsize=batchsize, wires=args.wires, class_type=var_targets, yield_mc_info=0)
+    train_steps_per_epoch = getNumEventsFromGen(generate_batches_from_files(files['train'], yield_mc_info=-1, **gen_kwargs))//batchsize
+    validation_steps = getNumEventsFromGen(generate_batches_from_files(files['val'], yield_mc_info=-1, **gen_kwargs))//batchsize
+    genVal = generate_batches_from_files(files['val'],yield_mc_info=0, **gen_kwargs)
 
     callbacks = []
     csvlogger = ks.callbacks.CSVLogger(args.folderOUT + 'history.csv', separator='\t', append=args.resume)
@@ -169,7 +174,7 @@ def fit_model(args, model, files, batchsize, var_targets, epoch, shuffle, n_even
     lrscheduler = ks.callbacks.LearningRateScheduler(LRschedule_stepdecay, verbose=1)
     epochlogger = EpochLevelPerformanceLogger(args=args, files=files['val'], var_targets=var_targets)
     batchlogger = BatchLevelPerformanceLogger(display=5, skipBatchesVal=40, steps_per_epoch=train_steps_per_epoch, args=args, #15, 20
-                                              genVal=generate_batches_from_files(files['val'], batchsize=batchsize, wires=args.wires, class_type=var_targets, yield_mc_info=0)) #batchsize//2
+                                              genVal=generate_batches_from_files(files['val'], yield_mc_info=0, **gen_kwargs)) #batchsize//2
     callbacks.append(csvlogger)
     callbacks.append(modellogger)
     callbacks.append(lrscheduler)
@@ -178,7 +183,7 @@ def fit_model(args, model, files, batchsize, var_targets, epoch, shuffle, n_even
     if tb_logger is True:
         print 'TensorBoard Log Directory:'
         print args.folderRUNS + 'tb_logs/%s'%(args.folderOUT[args.folderOUT.rindex('/', 0, len(args.folderOUT) - 1) + 1 : -1])
-        tensorlogger = TensorBoardWrapper(generate_batches_from_files(files['val'], batchsize=batchsize, wires=args.wires, class_type=var_targets, yield_mc_info=0),
+        tensorlogger = TensorBoardWrapper(generate_batches_from_files(files['val'], yield_mc_info=0, **gen_kwargs),
                                           nb_steps=validation_steps, log_dir=(args.folderRUNS + 'tb_logs/%s'%(args.folderOUT[args.folderOUT.rindex('/', 0, len(args.folderOUT) - 1) + 1 : -1])),
                                           histogram_freq=1, batch_size=batchsize, write_graph=True, write_grads=True, write_images=True)
         callbacks.append(tensorlogger)
@@ -190,7 +195,7 @@ def fit_model(args, model, files, batchsize, var_targets, epoch, shuffle, n_even
     print 'validation steps:', validation_steps
 
     model.fit_generator(
-        generate_batches_from_files(files['train'], batchsize=batchsize, wires=args.wires, class_type=var_targets, yield_mc_info=0),
+        generate_batches_from_files(files['train'], yield_mc_info=0, **gen_kwargs),
         steps_per_epoch=train_steps_per_epoch,
         epochs=epoch[0]+epoch[1],
         initial_epoch=epoch[0],
@@ -228,7 +233,7 @@ def load_trained_model(args):
     return model
 
 def LRschedule_stepdecay(epoch):
-    initial_lrate = 0.01 #0.01 # 0.001
+    initial_lrate = 0.001 #0.01 # 0.001
     step_drop = 0.5
     step_epoch = 5.0
     step_decay_weight = 0.9

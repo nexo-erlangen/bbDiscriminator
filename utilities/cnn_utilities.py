@@ -138,10 +138,16 @@ class EpochLevelPerformanceLogger(ks.callbacks.Callback):
         self.validation_data = None
         self.args = args
         self.files = files
-        self.eventsVal = min([getNumEvents(self.files), 2000])
         self.eventsPerBatch = 50
+        self.eventsVal = min([getNumEventsFromGen(generate_batches_from_files(self.files,
+                                                                              batchsize=self.eventsPerBatch,
+                                                                              class_type=var_targets,
+                                                                              wires=self.args.wires,
+                                                                              select_dict=self.args.select_dict,
+                                                                              yield_mc_info=-1)),
+                              2000])
         self.iterationsVal = round_down(self.eventsVal, self.eventsPerBatch) / self.eventsPerBatch
-        self.genVal = generate_batches_from_files(self.files, batchsize=self.eventsPerBatch, class_type=var_targets, yield_mc_info=1)
+        self.genVal = generate_batches_from_files(self.files, batchsize=self.eventsPerBatch, class_type=var_targets, wires=self.args.wires, select_dict=self.args.select_dict, yield_mc_info=1)
 
     def on_train_begin(self, logs={}):
         self.losses = []

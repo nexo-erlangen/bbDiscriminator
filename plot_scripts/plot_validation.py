@@ -20,19 +20,19 @@ def validation_mc_plots(args, folderOUT, data):
     # exit()
 
     maskBDT = True
-    for bdt_var in filter(lambda x: 'BDT' in x, data.keys()):
-        maskBDT = maskBDT & (data[bdt_var] != -2.0)
+    # for bdt_var in filter(lambda x: 'BDT' in x, data.keys()):
+    #     maskBDT = maskBDT & (data[bdt_var] != -2.0)
 
-    maskSS = maskBDT & (data['CCIsSS'] == 1)
-    # maskSS = maskBDT & (data['numCC'] == 1)
+    # maskSS = maskBDT & (data['CCIsSS'] == 1)
+    maskSS = maskBDT & (data['numCC'] == 1) & (data['DNNPredTrueClass'] >= 0.02)
     maskMS = np.invert(maskSS)
 
     # maskROI = (np.sum(data['CCPurityCorrectedEnergy'], axis=1) > 2400.) & \
     #           (np.sum(data['CCPurityCorrectedEnergy'], axis=1) < 2800.)
     # maskROI = (np.sum(data['CCCorrectedEnergy'], axis=1) > 2400.) & \
     #           (np.sum(data['CCCorrectedEnergy'], axis=1) < 2800.)
-    maskROI = (np.sum(data['CCCorrectedEnergy'], axis=1) > 2000.)
-    # maskROI = True
+    # maskROI = (np.sum(data['CCCorrectedEnergy'], axis=1) > 2000.)
+    maskROI = True
 
     maskBKG = (data['DNNTrueClass'] == 0)
     maskSIG = (data['DNNTrueClass'] == 1)
@@ -82,6 +82,8 @@ def validation_mc_plots(args, folderOUT, data):
     #                      data=[(np.sum(data['CCPurityCorrectedEnergy'], axis=1)[maskROI & maskSS & maskBKG]),
     #                            (np.sum(data['CCPurityCorrectedEnergy'], axis=1)[maskROI & maskSS & maskSIG])],
     #                      label=['Background', 'Signal'])
+
+    # exit()
     #
     # plot_energy_spectrum(fOUT=args.folderOUT + 'standoff_SS_ROI.pdf',
     #                      data=[data['CCStandoff'][maskROI & maskSS & maskBKG],
@@ -101,14 +103,13 @@ def validation_mc_plots(args, folderOUT, data):
     #                          data['CCStandoff'][maskROI & maskSS],
     #                          -1.0 * np.sqrt(data['MCEventSizeR']**2+data['MCEventSizeZ']**2)[maskROI & maskSS]],
     #                label=['DNN', 'BDT-Uni', 'BDT-Std', 'Standoff', 'MC 3D Size'])
-
+    #
     # plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve_ROI_BDT+DNN.pdf',
     #                dataTrue=data['DNNTrueClass'][maskROI & maskSS],
     #                dataPred=[data['DNNPredTrueClass'][maskROI & maskSS],
     #                          data['BDT-SS-Std'][maskROI & maskSS],
-    #                          data['BDT-DNN'][maskROI & maskSS],
-    #                          data['CCStandoff'][maskROI & maskSS]],
-    #                label=['DNN', 'BDT-Std', 'DNN+Stand', 'Standoff'])
+    #                          data['BDT-DNN'][maskROI & maskSS]],
+    #                label=['DNN', 'BDT-Std', 'DNN+Stand'])
     #
     # plot_prec_vs_recall_curve(fOUT=args.folderOUT + 'precision_vs_recall_ROI.pdf',
     #                           dataTrue=data['DNNTrueClass'][maskROI & maskSS],
@@ -260,14 +261,63 @@ def validation_mc_plots(args, folderOUT, data):
     #                          discr_range=[2400, 2800], discr_label='DNN+Stand',
     #                          data_label='uncalibrated corrected energy [keV]')
 
-    z_bins = np.concatenate((np.linspace(-180,-10,25), np.linspace(10,180,25)))
-    plot_hist2D_multi_norm(fOUT=args.folderOUT + 'threshold_SS_vs_Z.pdf',
-                           data_x=[data['DNNPredTrueClass'][maskROI & maskSS & maskBKG],
-                                   data['DNNPredTrueClass'][maskROI & maskSS & maskSIG]],
-                           data_y=[data['MCPosZ'][maskROI & maskSS & maskBKG],
-                                   data['MCPosZ'][maskROI & maskSS & maskSIG]],
-                           range_x=[0,1], bins_y=z_bins, name_x='signal likeness', name_y='Z [mm]',
-                           label=['Background', 'Signal'])
+    # z_bins = np.concatenate((np.linspace(-180,-10,25), np.linspace(10,180,25)))
+    # maskROI = (np.sum(data['CCCorrectedEnergy'], axis=1) > 1000.) & \
+    #           (np.sum(data['CCCorrectedEnergy'], axis=1) < 2000.)
+    # plot_hist2D_multi_norm(fOUT=args.folderOUT + 'threshold_SS_vs_Z_le2000.pdf',
+    #                        data_x=[data['DNNPredTrueClass'][maskROI & maskSS & maskBKG],
+    #                                data['DNNPredTrueClass'][maskROI & maskSS & maskSIG]],
+    #                        data_y=[data['MCPosZ'][maskROI & maskSS & maskBKG],
+    #                                data['MCPosZ'][maskROI & maskSS & maskSIG]],
+    #                        range_x=[0,1], bins_y=z_bins, name_x='signal likeness', name_y='Z [mm]',
+    #                        label=['Background', 'Signal'])
+    #
+    # maskROI = (np.sum(data['CCCorrectedEnergy'], axis=1) > 2000.) & \
+    #           (np.sum(data['CCCorrectedEnergy'], axis=1) < 3000.)
+    # plot_hist2D_multi_norm(fOUT=args.folderOUT + 'threshold_SS_vs_Z_gr2000.pdf',
+    #                        data_x=[data['DNNPredTrueClass'][maskROI & maskSS & maskBKG],
+    #                                data['DNNPredTrueClass'][maskROI & maskSS & maskSIG]],
+    #                        data_y=[data['MCPosZ'][maskROI & maskSS & maskBKG],
+    #                                data['MCPosZ'][maskROI & maskSS & maskSIG]],
+    #                        range_x=[0, 1], bins_y=z_bins, name_x='signal likeness', name_y='Z [mm]',
+    #                        label=['Background', 'Signal'])
+    #
+    # maskROI = (np.sum(data['CCCorrectedEnergy'], axis=1) > 2400.) & \
+    #           (np.sum(data['CCCorrectedEnergy'], axis=1) < 2800.)
+    # plot_hist2D_multi_norm(fOUT=args.folderOUT + 'threshold_SS_vs_Z_ROI.pdf',
+    #                        data_x=[data['DNNPredTrueClass'][maskROI & maskSS & maskBKG],
+    #                                data['DNNPredTrueClass'][maskROI & maskSS & maskSIG]],
+    #                        data_y=[data['MCPosZ'][maskROI & maskSS & maskBKG],
+    #                                data['MCPosZ'][maskROI & maskSS & maskSIG]],
+    #                        range_x=[0, 1], bins_y=z_bins, name_x='signal likeness', name_y='Z [mm]',
+    #                        label=['Background', 'Signal'])
+    #
+    # e_bins = np.linspace(1000, 3000, 50)
+    # plot_hist2D_multi_norm(fOUT=args.folderOUT + 'threshold_SS_vs_E.pdf',
+    #                        data_x=[data['DNNPredTrueClass'][maskSS & maskBKG],
+    #                                data['DNNPredTrueClass'][maskSS & maskSIG]],
+    #                        data_y=[data['MCEnergy'][maskSS & maskBKG],
+    #                                data['MCEnergy'][maskSS & maskSIG]],
+    #                        range_x=[0, 1], bins_y=e_bins, name_x='signal likeness', name_y='E [keV]',
+    #                        label=['Background', 'Signal'])
+    #
+    # z_bins = np.concatenate((np.linspace(-180,-10,25), np.linspace(10,180,25)))
+    # plot_hist2D_multi_norm(fOUT=args.folderOUT + 'EventSize_SS_vs_Z.pdf',
+    #                        data_x=[np.sqrt(data['MCEventSizeR'] ** 2 + data['MCEventSizeZ'] ** 2)[maskSS & maskBKG],
+    #                                np.sqrt(data['MCEventSizeR'] ** 2 + data['MCEventSizeZ'] ** 2)[maskSS & maskSIG]],
+    #                        data_y=[data['MCPosZ'][maskSS & maskBKG],
+    #                                data['MCPosZ'][maskSS & maskSIG]],
+    #                        range_x=[0,20], bins_y=z_bins, name_x='True Event Size [mm]', name_y='Z [mm]',
+    #                        label=['Background', 'Signal'])
+    #
+    #
+    # plot_hist2D_multi_norm(fOUT=args.folderOUT + 'EventSize_SS_vs_E.pdf',
+    #                        data_x=[np.sqrt(data['MCEventSizeR'] ** 2 + data['MCEventSizeZ'] ** 2)[maskSS & maskBKG],
+    #                                np.sqrt(data['MCEventSizeR'] ** 2 + data['MCEventSizeZ'] ** 2)[maskSS & maskSIG]],
+    #                        data_y=[(np.sum(data['CCPurityCorrectedEnergy'], axis=1))[maskSS & maskBKG],
+    #                                (np.sum(data['CCPurityCorrectedEnergy'], axis=1))[maskSS & maskSIG]],
+    #                        range_x=[0,20], bins_y=e_bins, name_x='True Event Size [mm]', name_y='CC E [keV]',
+    #                        label=['Background', 'Signal'])
 
 
     # plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_vs_threshold.pdf',
@@ -309,21 +359,21 @@ def validation_mc_plots(args, folderOUT, data):
                                 data=[data['DNNPredTrueClass'][maskBKG & maskMS],
                                       data['DNNPredTrueClass'][maskSIG & maskMS]],
                                 label=['Background', 'Signal'])
-    #
+
     plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_vs_threshold-ROI.pdf',
                                 data=[data['DNNPredTrueClass'][maskBKG & maskROI],
                                       data['DNNPredTrueClass'][maskSIG & maskROI]],
                                 label=['Background', 'Signal'])
-    #
-    # plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_SS_vs_threshold-ROI.pdf',
-    #                             data=[data['DNNPredTrueClass'][maskBKG & maskROI & maskSS],
-    #                                   data['DNNPredTrueClass'][maskSIG & maskROI & maskSS]],
-    #                             label=['Background', 'Signal'])
-    #
-    # plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_MS_vs_threshold-ROI.pdf',
-    #                             data=[data['DNNPredTrueClass'][maskBKG & maskROI & maskMS],
-    #                                   data['DNNPredTrueClass'][maskSIG & maskROI & maskMS]],
-    #                             label=['Background', 'Signal'])
+
+    plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_SS_vs_threshold-ROI.pdf',
+                                data=[data['DNNPredTrueClass'][maskBKG & maskROI & maskSS],
+                                      data['DNNPredTrueClass'][maskSIG & maskROI & maskSS]],
+                                label=['Background', 'Signal'])
+
+    plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_MS_vs_threshold-ROI.pdf',
+                                data=[data['DNNPredTrueClass'][maskBKG & maskROI & maskMS],
+                                      data['DNNPredTrueClass'][maskSIG & maskROI & maskMS]],
+                                label=['Background', 'Signal'])
 
     # plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_vs_threshold-ROI-DNN-BDT.pdf',
     #                             data=[data['DNNPredTrueClass'][maskBKG & maskROI],
@@ -347,13 +397,32 @@ def validation_mc_plots(args, folderOUT, data):
     #                             label=['Background', 'Signal', 'Bkg (DNN+Stand)', 'Sig (DNN+Stand)'])
 
     plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve.pdf',
-                   dataTrue=[data['DNNTrueClass'][maskSS],
-                             data['DNNTrueClass'][maskMS],
-                             data['DNNTrueClass']],
-                   dataPred=[data['DNNPredTrueClass'][maskSS],
-                             data['DNNPredTrueClass'][maskMS],
-                             data['DNNPredTrueClass']],
-                   label=['DNN SS', 'DNN MS', 'DNN SS+MS'])
+                   dataTrue=[data['DNNTrueClass'][maskSS]],
+                   dataPred=[data['DNNPredTrueClass'][maskSS]],
+                   label=['DNN SS'])
+
+    plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve_ROI-DNN.pdf',
+                   dataTrue=[data['DNNTrueClass'][maskROI & maskSS]],
+                   dataPred=[data['DNNPredTrueClass'][maskROI & maskSS]],
+                   label=['DNN SS'])
+
+    # plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve.pdf',
+    #                dataTrue=[data['DNNTrueClass'][maskSS],
+    #                          data['DNNTrueClass'][maskMS],
+    #                          data['DNNTrueClass']],
+    #                dataPred=[data['DNNPredTrueClass'][maskSS],
+    #                          data['DNNPredTrueClass'][maskMS],
+    #                          data['DNNPredTrueClass']],
+    #                label=['DNN SS', 'DNN MS', 'DNN SS+MS'])
+    #
+    # plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve_ROI-DNN.pdf',
+    #                dataTrue=[data['DNNTrueClass'][maskROI & maskSS],
+    #                          data['DNNTrueClass'][maskROI & maskMS],
+    #                          data['DNNTrueClass'][maskROI]],
+    #                dataPred=[data['DNNPredTrueClass'][maskROI & maskSS],
+    #                          data['DNNPredTrueClass'][maskROI & maskMS],
+    #                          data['DNNPredTrueClass'][maskROI]],
+    #                label=['DNN SS', 'DNN MS', 'DNN SS+MS'])
 
     # plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve_SS_Outputs.pdf',
     #                dataTrue=[data['DNNTrueClass'][:,0][maskSS],

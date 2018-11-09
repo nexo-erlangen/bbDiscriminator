@@ -24,8 +24,8 @@ print
 
 files = [f for f in listdir(args.folderIN) if isfile(join(args.folderIN, f)) and '.hdf5' in f]
 
-start, length = 1000, 350 #512, 1024
-slice = 2000
+start, length = 0, 350 #1000, 350
+slice = 4000
 batchsize = 1
 fletcher32 = True
 shuffle = False
@@ -41,13 +41,12 @@ for index, filename in enumerate(files):
 		if key in ['gains', 'wfs', 'wf_list']: continue
 		event_info_i[key] = np.asarray(fIN[key])
 	gains = np.asarray(fIN['gains'])
-	# wfs_i = np.asarray(fIN['wfs'])[:,:,start:start + length]
-	wfs_i = np.asarray(fIN['wf_list'])[:, :, start:start + length]
+	wfs_i = np.asarray(fIN['wfs'])[:, :, start:start + length]
 	fIN.close()
 
 	wfs_i = np.asarray(wfs_i / gains[:, None])
-	# wfs_i = np.asarray(np.split(wfs_i, 4, axis=1))
-	wfs_i = np.asarray(np.split(wfs_i, 2, axis=1))
+	wfs_i = np.asarray(np.split(wfs_i, 4, axis=1))
+	# wfs_i = np.asarray(np.split(wfs_i, 2, axis=1))
 	wfs_i = np.swapaxes(wfs_i, 0, 1)
 	#wfs_i = np.swapaxes(wfs_i, 1, 2) #ordering increases disk space by factor 1.8
 	wfs_i = wfs_i[..., np.newaxis]
@@ -70,19 +69,19 @@ for index, filename in enumerate(files):
 		dset1 = fOUT.create_dataset("wfs", data=wfs[:slice], dtype=np.float32, fletcher32=fletcher32, chunks=chunks_wfs, compression=compression[0], compression_opts=compression[1], shuffle=shuffle)
 		dset = {}
 		for key in event_info:
-			if key in ['EventNum']:
-				keytemp = 'MCEventNum'
-			elif key in ['RunNum']:
-				keytemp = 'MCRunNum'
-			else:
-				keytemp = key
+			# if key in ['EventNum']:
+			# 	keytemp = 'MCEventNum'
+			# elif key in ['RunNum']:
+			# 	keytemp = 'MCRunNum'
+			# else:
+			# 	keytemp = key
 			# dset[key] = fOUT.create_dataset(keytemp, data=event_info[key][:slice], dtype=np.float32, fletcher32=fletcher32, chunks=chunks, compression=compression[0], compression_opts=compression[1], shuffle=shuffle)
-			dset[key] = fOUT.create_dataset(keytemp, data=event_info[key][:slice], dtype=np.float32)
+			dset[key] = fOUT.create_dataset(key, data=event_info[key][:slice], dtype=np.float32)
 			event_info[key] = event_info[key][slice:]
 
 		# ID = np.zeros((slice,), dtype=np.float32) # TODO for BKG events
-		ID = np.ones((slice,), dtype=np.float32) # TODO for SIG events
-		fOUT.create_dataset('ID', data=ID, dtype=np.float32)
+		# ID = np.ones((slice,), dtype=np.float32) # TODO for SIG events
+		# fOUT.create_dataset('ID', data=ID, dtype=np.float32)
 
 		fOUT.close()
 

@@ -8,9 +8,25 @@ import h5py
 import random
 import cPickle as pickle
 import os
+from datetime import datetime
+
+def main():
+    files = ['/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_AllVessel_MC_P2/0-shuffled.hdf5',
+             '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_AllVessel_MC_P2/1-shuffled.hdf5',
+             '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_AllVessel_MC_P2/2-shuffled.hdf5',
+             '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_AllVessel_MC_P2/3-shuffled.hdf5',
+             '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_AllVessel_MC_P2/4-shuffled.hdf5']
+    batchsize = 50
+    wires = 'U'
+    class_type = 'binary_bb_gamma'
+    gen = generate_batches_from_files(files, batchsize, wires, class_type, f_size=None, yield_mc_info=-1)
+    # for i in range(100):
+    # print sum(gen.next() for i in range(100))
+    print getNumEventsFromGen(gen)
+
 
 #------------- Function used for supplying images to the GPU -------------#
-def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f_size=None, yield_mc_info=0):
+def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f_size=None, select_dict={}, yield_mc_info=0):
     """
     Generator that returns batches of images ('xs') and labels ('ys') from a h5 file.
     :param string files: Full filepath of the input h5 file, e.g. '[/path/to/file/file.hdf5]'.
@@ -19,15 +35,13 @@ def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f
     :param int/None f_size: Specifies the filesize (#images) of the .h5 file if not the whole .h5 file
                        but a fraction of it (e.g. 10%) should be used for yielding the xs/ys arrays.
                        This is important if you run fit_generator(epochs>1) with a filesize (and hence # of steps) that is smaller than the .h5 file.
+    :param dict select_dict: Dict that contains event selection criteria. e.g. CCIsSS=1.
     :param int yield_mc_info: Specifies if mc-infos should be yielded. 0: Only Waveforms, 1: Waveforms+MC Info, 2: Only MC Info
                                The mc-infos are used for evaluation after training and testing is finished.
     :return: tuple output: Yields a tuple which contains a full batch of images and labels (+ mc_info depending on yield_mc_info).
     """
 
-    try:
-        import keras as ks
-    except ImportError:
-        if not yield_mc_info == 2: raise ImportError
+    from keras.utils import to_categorical
 
     if isinstance(files, list): pass
     elif isinstance(files, basestring): files = [files]
@@ -47,58 +61,68 @@ def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f
             f = h5py.File(str(filename), "r")
             if f_size is None: f_size = getNumEvents(filename)
 
-            # filter the labels we don't want for now
             for key in f.keys():
                 if key in ['wfs']: continue
                 eventInfo[key] = np.asarray(f[key])
             ys = encode_targets(eventInfo, f_size, class_type)
-            ys = ks.utils.to_categorical(ys, 2) #convert to one-hot vectors
+            ys = to_categorical(ys, 2) #convert to one-hot vectors
 
-            # ss = np.argwhere(eventInfo['CCIsSS'] == 1)
-            # print ss.shape
-            # print eventInfo['CCIsSS'].shape
-            # for i in range(40):
-            #     print i, eventInfo['CCIsSS'][i], ss[i]
-            # exit()
+            lst = select_events(eventInfo, select_dict=select_dict, shuffle=True)
+            # lst = np.arange(0, f_size, batchsize)
+            # random.shuffle(lst)
 
-            lst = np.arange(0, f_size, batchsize)
-            random.shuffle(lst)
+            if not yield_mc_info in [-1,2]:
+                xs = np.asarray(f['wfs'])[:, wireindex]
+                # print xs.shape
 
-            for i in lst:
-                if not yield_mc_info == 2:
-                    xs_i = f['wfs'][i: i + batchsize, wireindex]
+                # TODO these 2 lines for baseline U-only 2x(Bx350x38x1)
+                xs = np.swapaxes(xs, 0, 1)
+                xs = np.swapaxes(xs, 2, 3)
 
-                    # xs_i = np.swapaxes(xs_i, 0, 1)
-                    # xs_i = np.swapaxes(xs_i, 2, 3)
+                # TODO these 2 lines for UV (Bx350x38x4)
+                # xs = np.swapaxes(xs, 1, 3)
+                # xs = np.squeeze(xs)
 
-                    # print xs_i.shape
-                    # xs_i = np.swapaxes(xs_i, 1, 3)
+                # TODO these 2 lines for U-only (Bx350x76x1)
+                # xs = np.reshape(xs, (batchsize, 76, 350, -1))
+                # xs = np.swapaxes(xs, 1, 2)
 
-                    xs_i = np.reshape(xs_i, (batchsize, 76, 350, -1))
-                    xs_i = np.swapaxes(xs_i, 1, 2)
+                # print xs.shape
+                # exit()
 
-                    # xs_i = np.squeeze(xs_i)
-                    # print xs_i.shape
-                    # exit()
+            for i in np.arange(0, lst.size, batchsize):
+                batch = sorted(lst[i: i + batchsize])
+                # if len(batch) != batchsize: continue
 
-                    ys_i = ys[ i : i + batchsize ]
-                    xs_i_aux = np.dstack((eventInfo['CCPosU'][i: i + batchsize],
-                                          eventInfo['CCPosV'][i: i + batchsize],
-                                          eventInfo['CCPosZ'][i: i + batchsize],
-                                          eventInfo['CCCorrectedEnergy'][i: i + batchsize]))
+                if not yield_mc_info in [-1,2]:
+                    # TODO this line for baseline U-only 2x(Bx350x38x1)
+                    xs_i = xs[:, batch]
 
+                    # TODO this line for U-only or UV (Bx350x38/76x1/2/4)
+                    # xs_i = xs[batch]
+
+                    ys_i = ys[batch]
+                    # xs_i_aux = np.dstack((eventInfo['CCPosU'][batch],
+                    #                       eventInfo['CCPosV'][batch],
+                    #                       eventInfo['CCPosZ'][batch],
+                    #                       eventInfo['CCCorrectedEnergy'][batch]))
+                    # xs_i_aux = xs_i_aux[..., np.newaxis]
 
                 # if yield_mc_info == 0: yield (xs_i_aux, ys_i)
-                # elif yield_mc_info == 1: yield (xs_i_aux, ys_i) + ({key: eventInfo[key][i: i + batchsize] for key in eventInfo.keys()},)
-                if yield_mc_info == 0: yield ([xs_i, xs_i_aux], [ys_i, ys_i, ys_i])
-                elif yield_mc_info == 1: yield ([xs_i, xs_i_aux], [ys_i, ys_i, ys_i]) + ({key: eventInfo[key][i: i + batchsize] for key in eventInfo.keys()},)
+                # elif yield_mc_info == 1: yield (xs_i_aux, ys_i) + ({key: eventInfo[key][batch] for key in eventInfo.keys()},)
+                # if yield_mc_info == 0: yield ([xs_i, xs_i_aux], [ys_i, ys_i, ys_i])
+                # elif yield_mc_info == 1: yield ([xs_i, xs_i_aux], [ys_i, ys_i, ys_i]) + ({key: eventInfo[key][batch] for key in eventInfo.keys()},)
                 # if yield_mc_info == 0: yield (xs_i, ys_i)
-                # elif yield_mc_info == 1: yield (xs_i, ys_i) + ({key: eventInfo[key][i: i + batchsize] for key in eventInfo.keys()},)
-                # if   yield_mc_info == 0:    yield (list(xs_i), ys_i)
-                # elif yield_mc_info == 1:    yield (list(xs_i), ys_i) + ({ key: eventInfo[key][i: i + batchsize] for key in eventInfo.keys() },)
-                elif yield_mc_info == 2:    yield { key: eventInfo[key][i: i + batchsize] for key in eventInfo.keys() }
-                else:   raise ValueError("Wrong argument for yield_mc_info (0/1/2)")
-            f.close()  # this line of code is actually not reached if steps=f_size/batchsize
+                # elif yield_mc_info == 1: yield (xs_i, ys_i) + ({key: eventInfo[key][batch] for key in eventInfo.keys()},)
+                if   yield_mc_info == 0:    yield (list(xs_i), ys_i)
+                elif yield_mc_info == 1:    yield (list(xs_i), ys_i) + ({ key: eventInfo[key][batch] for key in eventInfo.keys() },)
+                elif yield_mc_info == 2:    yield { key: eventInfo[key][batch] for key in eventInfo.keys() }
+                elif yield_mc_info == -1:   yield len(batch)
+                else:   raise ValueError("Wrong argument for yield_mc_info (-1/0/1/2)")
+            f.close()
+        if yield_mc_info != 0:
+            print 'repeating file list in generator!'
+            raise StopIteration
 
 def encode_targets(y_dict, batchsize, class_type=None):
     """
@@ -116,6 +140,28 @@ def encode_targets(y_dict, batchsize, class_type=None):
     else:
         raise ValueError('Class type ' + str(class_type) + ' not supported!')
     return train_y
+
+def select_events(data_dict, select_dict={}, shuffle=True):
+    """
+    Encodes the labels (classes) of the images.
+    :param dict data_dict: Dictionary that contains ALL event class information for the events.
+    :param dict select_dict: Dictionary that contains keys to select events with their values (or low/up limit for range selections).
+    :param bool shuffle: Boolean to specify whether the index output list should be shuffled.
+    :return: list lst: List that holds the events indices that pass the given selection criteria.
+    """
+
+    mask = np.ones(data_dict.values()[0].shape[0], dtype=bool)
+    for key, value in select_dict.items():
+        if key not in data_dict.keys(): raise ValueError('Key not in data dict: %s'%(key))
+        if isinstance(value, list) and len(value) == 1:
+            mask = mask & (data_dict[key] == value[0])
+        elif isinstance(value, list) and len(value) == 2:
+            mask = mask & (data_dict[key] >= value[0]) & (data_dict[key] < value[1])
+        else:
+            raise ValueError('Key/Value pair is strange. key: %s . value: %s)'%(key, value))
+    lst = np.squeeze(np.argwhere(mask))
+    if shuffle: random.shuffle(lst)
+    return lst
 
 def read_EventInfo_from_files(files, maxNumEvents=0):
     """
@@ -217,7 +263,7 @@ def get_events(args, files, model, fOUT):
             raise ValueError('choose event number in multiples of %f events'%(events_per_batch))
 
         iterations = round_down(args.events, events_per_batch) / events_per_batch
-        gen = generate_batches_from_files(files, events_per_batch, wires=args.wires, class_type=args.var_targets, f_size=None, yield_mc_info=1)
+        gen = generate_batches_from_files(files, events_per_batch, wires=args.wires, class_type=args.var_targets, f_size=None, select_dict=args.select_dict, yield_mc_info=1)
 
         for i in xrange(iterations):
             print i*events_per_batch, ' of ', iterations*events_per_batch
@@ -230,19 +276,25 @@ def get_events(args, files, model, fOUT):
         EVENT_INFO['DNNPredClass'] = EVENT_INFO['DNNPred'].argmax(axis=-1)
         EVENT_INFO['DNNTrueClass'] = EVENT_INFO['DNNTrue'].argmax(axis=-1)
         EVENT_INFO['DNNPredTrueClass'] = EVENT_INFO['DNNPred'][..., 1]
-
-        for i in range(100):
-            print EVENT_INFO['DNNPredTrueClass'][(EVENT_INFO['CCIsSS'] == 1)][i]
-        exit()
-
+        # for i in range(100):
+        #     print i, EVENT_INFO['CCIsSS'][i], EVENT_INFO['DNNTrueClass'][i], EVENT_INFO['DNNPredTrueClass'][i]
+        # exit()
         write_dict_to_hdf5_file(data=EVENT_INFO, file=fOUT)
     return EVENT_INFO
+
+def getNumEventsFromGen(gen):
+    counter = 0
+    while gen:
+        try:
+            counter += gen.next()
+        except StopIteration:
+            return counter
 
 def getNumEvents(files):
     if isinstance(files, list): pass
     elif isinstance(files, basestring): files = [files]
     elif isinstance(files, dict): files = reduce(lambda x,y: x+y,files.values())
-    else: raise TypeError('passed variabel need to be list/np.array/str/dict[dict]')
+    else: raise TypeError('passed variable need to be list/np.array/str/dict[dict]')
 
     counter = 0
     for filename in files:
@@ -271,3 +323,9 @@ def get_array_memsize(array, unit='KB'):
 def round_down(num, divisor):
     return num - (num%divisor)
 
+# ----------------------------------------------------------
+# Program Start
+# ----------------------------------------------------------
+if __name__ == '__main__':
+    main()
+    print '===================================== Program finished =============================='

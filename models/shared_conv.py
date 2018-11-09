@@ -1,6 +1,6 @@
 from keras.models import Model
 from keras.layers import Input
-from keras.layers import Dense, LocallyConnected1D
+from keras.layers import Dense, LocallyConnected1D, LocallyConnected2D
 from keras.layers import Flatten, Dropout, BatchNormalization, Activation
 from keras.layers.convolutional import Conv2D, Conv1D
 from keras.layers.pooling import MaxPooling2D, AveragePooling2D, GlobalAveragePooling2D
@@ -101,58 +101,70 @@ def create_shared_dcnn_network_4():
     return Model(inputs=inputUV, outputs=output)
 
 def create_shared_inception_network_2_extra_input():
-    kwargs = {'padding': 'same',
-              'dropout': 0.0,
-              'BN': True,
-              'kernel_initializer': 'glorot_uniform'}
+    auxiliary_input = Input(shape=(10, 4, 1), name='aux_input')
+    x = Conv2D(10, kernel_size=(1, 4), padding='same', activation='relu', kernel_initializer="glorot_normal")(auxiliary_input)
+    # x = Conv2D(10, kernel_size=(1, 4), padding='same', activation='relu', kernel_initializer="glorot_uniform")(x)
+    # x = Conv2D(10, kernel_size=(1, 4), padding='same', activation='relu', kernel_initializer="glorot_uniform")(x)
+    # x = Conv2D(20, kernel_size=(1, 4), padding='same', activation='relu', kernel_initializer="glorot_uniform")(x)
+    x = Conv2D(20, kernel_size=(1, 4), padding='same', activation='relu', kernel_initializer="glorot_normal")(x)
+    x = Conv2D(40, kernel_size=(1, 4), padding='same', activation='relu', kernel_initializer="glorot_normal")(x)
+    merge_pos = Flatten()(x)
+    # merge_pos = Dense(56, activation='relu', kernel_initializer="glorot_uniform")(x)
+    output_pos = Dense(2, name='Output_Pos', activation='softmax', kernel_initializer="glorot_normal")(merge_pos)
 
-    input_a = Input(shape=(350, 76, 1), name='Wire_1')
+    return Model(inputs=[auxiliary_input], outputs=[output_pos])
 
-    input = []
-    input.append(input_a)
-
-    layers = []
-    layers.append(Conv_block(32, filter_size=(3, 3), **kwargs))
-    layers.append(Conv_block(32, filter_size=(3, 3), **kwargs))
-    layers.append([MaxPooling2D((4, 2))])
-    layers.append(Conv_block(64, filter_size=(3, 3), **kwargs))
-
-    num_filters = (64, (96, 128), (16, 32), 32)
-    layers.append(InceptionV1_block(num_filters=num_filters))
-    layers.append(InceptionV1_block(num_filters=num_filters))
-    layers.append([MaxPooling2D((2, 2))])
-    layers.append(InceptionV1_block(num_filters=num_filters))
-    layers.append(InceptionV1_block(num_filters=num_filters))
-    layers.append([MaxPooling2D((2, 1))])
-    layers.append(InceptionV1_block(num_filters=num_filters))
-    layers.append(InceptionV1_block(num_filters=num_filters))
-    layers.append([GlobalAveragePooling2D()])
-
-    paths = assemble_network(input, layers)
-    merge_top = paths[0]
+    # kwargs = {'padding': 'same',
+    #           'dropout': 0.0,
+    #           'BN': True,
+    #           'kernel_initializer': 'glorot_uniform'}
+    #
+    # input_a = Input(shape=(350, 76, 1), name='Wire_1')
+    #
+    # input = []
+    # input.append(input_a)
+    #
+    # layers = []
+    # layers.append(Conv_block(32, filter_size=(3, 3), **kwargs))
+    # layers.append(Conv_block(32, filter_size=(3, 3), **kwargs))
+    # layers.append([MaxPooling2D((4, 2))])
+    # layers.append(Conv_block(64, filter_size=(3, 3), **kwargs))
+    #
+    # num_filters = (64, (96, 128), (16, 32), 32)
+    # layers.append(InceptionV1_block(num_filters=num_filters))
+    # layers.append(InceptionV1_block(num_filters=num_filters))
+    # layers.append([MaxPooling2D((2, 2))])
+    # layers.append(InceptionV1_block(num_filters=num_filters))
+    # layers.append(InceptionV1_block(num_filters=num_filters))
+    # layers.append([MaxPooling2D((2, 1))])
+    # layers.append(InceptionV1_block(num_filters=num_filters))
+    # layers.append(InceptionV1_block(num_filters=num_filters))
+    # layers.append([GlobalAveragePooling2D()])
+    #
+    # paths = assemble_network(input, layers)
+    # merge_top = paths[0]
+    # output_top = Dense(2, name='Output_Top', activation='softmax', kernel_initializer="glorot_uniform")(merge_top)
 
     # merge = Concatenate(name='Flat_1_and_2')(paths)
     # output = Dense(2, name='Output', activation='softmax', kernel_initializer="glorot_uniform")(merge)
     # return Model(inputs=input, outputs=output)
-
-    output_top = Dense(2, name='Output_Top', activation='softmax', kernel_initializer="glorot_uniform")(merge_top)
-
-    auxiliary_input = Input(shape=(10, 4), name='aux_input')
-    x = LocallyConnected1D(10, kernel_size=1, activation='relu')(auxiliary_input)
-    x = LocallyConnected1D(20, kernel_size=1, activation='relu')(x)
-    x = LocallyConnected1D(40, kernel_size=1, activation='relu')(x)
-    merge_pos = Flatten()(x)
-    output_pos = Dense(2, name='Output_Pos', activation='softmax', kernel_initializer="glorot_uniform")(merge_pos)
-
-    x = Concatenate(name='Merge_Pos_and_Top')([merge_pos, merge_top])
-    x = Dense(64, activation='relu')(x)
-    x = Dense(64, activation='relu')(x)
-    x = Dense(64, activation='relu')(x)
-    output = Dense(2, name='Output', activation='softmax', kernel_initializer="glorot_uniform")(x)
-
-    # return Model(inputs=auxiliary_input, outputs=output)
-
-    return Model(inputs=[input_a, auxiliary_input], outputs=[output, output_top, output_pos])
+    #
+    # auxiliary_input = Input(shape=(10, 4), name='aux_input')
+    # x = LocallyConnected1D(10, kernel_size=1, activation='relu')(auxiliary_input)
+    # x = LocallyConnected1D(20, kernel_size=1, activation='relu')(x)
+    # x = LocallyConnected1D(40, kernel_size=1, activation='relu')(x)
+    # merge_pos = Flatten()(x)
+    # output_pos = Dense(2, name='Output_Pos', activation='softmax', kernel_initializer="glorot_uniform")(merge_pos)
+    #
+    # x = Concatenate(name='Merge_Pos_and_Top')([merge_pos, merge_top])
+    # x = Dense(64, activation='relu')(x)
+    # x = Dense(64, activation='relu')(x)
+    # x = Dense(64, activation='relu')(x)
+    # output = Dense(2, name='Output', activation='softmax', kernel_initializer="glorot_uniform")(x)
+    #
+    # # return Model(inputs=auxiliary_input, outputs=output)
+    #
+    # return Model(inputs=[input_a, auxiliary_input], outputs=[output, output_top, output_pos])
 
 
 def create_shared_inception_network_2():

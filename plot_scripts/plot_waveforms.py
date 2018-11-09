@@ -13,13 +13,20 @@ from utilities import generator as gen
 
 TimeOffset = 1000
 
+# mode = 'single'
+mode = 'sum'
+
 def main():
     # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_Uni_MC_P2/'
-    folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_reduced_MC_P2/'
-    folderOUT = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Waveforms/reduced/'
+    # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_reduced_MC_P2/'
+    # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/Th228_WFs_S5_Data_P2-old/'
+    # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/Th228_WFs_S5_Data_P2/'
+    folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/Th228_WFs_S5_MC_P2/'
+    folderOUT = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Waveforms/'
     files = [os.path.join(folderIN, f) for f in os.listdir(folderIN) if os.path.isfile(os.path.join(folderIN, f)) and '.hdf5' in f]
-    number = 50
-    generator = gen.generate_batches_from_files(files, 1, wires='small', class_type=None, f_size=None, yield_mc_info=1)
+    number = 72000
+    generator = gen.generate_batches_from_files(files, 1, wires='U', class_type=None, f_size=None, yield_mc_info=1)
+    wf_sum = None
     for idx in xrange(number):
         wf, _, eventInfo = generator.next()
         wf = np.asarray(wf)
@@ -29,11 +36,22 @@ def main():
         elif eventInfo['ID'] == 1: particleID = 'doubleBeta'
         elif eventInfo['ID'] == 2: particleID = 'Electron'
 
-        print 'plot waveform \t', idx
-        if wf.shape[0] == 2: #plot_waveforms_U(np.asarray(wf), idx, particleID, eventInfo['LXeEnergy'], folderOUT)
-            plot_waveforms_U(np.asarray(wf), idx, particleID, 0.0, folderOUT)
-        elif wf.shape[0] == 4: plot_waveforms_UV(np.asarray(wf), idx, particleID, eventInfo['LXeEnergy'], folderOUT)
-        else: ValueError('strange waveform shape: %s'%(wf.shape))
+        if mode == 'single':
+            print 'plot waveform \t', idx
+            if wf.shape[0] == 2: #plot_waveforms_U(np.asarray(wf), idx, particleID, eventInfo['LXeEnergy'], folderOUT)
+                plot_waveforms_U(np.asarray(wf), idx, particleID, 0.0, folderOUT)
+            elif wf.shape[0] == 4: plot_waveforms_UV(np.asarray(wf), idx, particleID, eventInfo['MCEnergy'], folderOUT)
+            else: ValueError('strange waveform shape: %s'%(wf.shape))
+        elif mode == 'sum':
+            if idx%1000==0: print idx
+            if wf_sum is None:
+                print 'initializing wfs'
+                wf_sum = wf
+            else:
+                wf_sum += wf
+            # print wf.shape
+    if mode == 'sum':
+        plot_waveforms_heat(np.asarray(wf_sum), folderOUT + 'heat.png')
     return
 
 def plot_waveforms_UV(wf, idx, partID, energy, folderOUT):
@@ -125,6 +143,45 @@ def plot_waveforms_U(wf, idx, partID, energy, folderOUT):
     plt.close()
     plt.clf()
     return
+
+def plot_waveforms_heat(data, fOUT):
+    from matplotlib import gridspec, colors
+
+    range_x = [0, 350]
+    range_y = [0, 38]
+    extent = [range_x[0], range_x[1], range_y[0], range_y[1]]
+
+    data = np.swapaxes(data, 1, 2)
+    data = np.swapaxes(data, 2, 3)
+    data = np.squeeze(data)
+    data = np.squeeze(data)
+
+    aspect = "auto"
+    data /= np.max(data)
+
+    plt.clf()
+    f, axarr = plt.subplots(1, 2)
+    f.set_size_inches(w=20., h=5.)
+    gs = gridspec.GridSpec(1, 2)
+    ax1 = plt.subplot(gs[0])
+    ax2 = plt.subplot(gs[1], sharey=ax1)
+
+    h1 = ax1.imshow(data[0].T, extent=extent, interpolation='nearest', vmin=-1, vmax=1, cmap=plt.get_cmap('RdBu_r'), origin='lower', aspect=aspect) #, norm=colors.Normalize(vmax=1))
+    h2 = ax2.imshow(data[1].T, extent=extent, interpolation='nearest', vmin=-1, vmax=1, cmap=plt.get_cmap('RdBu_r'), origin='lower', aspect=aspect) #, norm=colors.Normalize(vmax=1))
+    f.colorbar(h2, ax=ax2, shrink=0.6)
+
+    ax1.set_xlim(range_x)
+    ax2.set_xlim(range_x)
+    ax1.set_ylim(range_y)
+
+    ax1.set_ylabel(r'Amplitude + offset [a.u.]', fontsize=16)
+    ax1.set_xlabel(r'arbitrary time [$\mu$s]', fontsize=16)
+    ax2.set_xlabel(r'arbitrary time [$\mu$s]', fontsize=16)
+
+    plt.setp(ax2.get_yticklabels(), visible=False)
+    # plt.subplots_adjust(hspace=.0)
+    f.savefig(fOUT, bbox_inches='tight')
+    plt.close()
 
 # ----------------------------------------------------------
 # Program Start

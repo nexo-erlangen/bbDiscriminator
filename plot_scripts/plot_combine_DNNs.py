@@ -9,6 +9,8 @@ import os
 from sys import path
 path.append('/home/hpc/capm/sn0515/bbDiscriminator')
 import cPickle as pickle
+from utilities.generator import *
+from plot_scripts.plot_validation import *
 
 # scatter
 def plot_scatter(E_x, E_y, name_x, name_y, name_title, fOUT):
@@ -31,7 +33,7 @@ def plot_scatter_hist2d(E_x, E_y, name_x, name_y, name_title, fOUT):
     extent = [xbins.min(), xbins.max(), ybins.min(), ybins.max()]
     # plt.plot([0,1], [0,1], 'k--')
     # im = plt.imshow(hist.T, extent=extent, interpolation='nearest', vmin=0, vmax=1, cmap=plt.get_cmap('viridis'), origin='lower', norm=mpl.colors.Normalize()) # norm=mpl.colors.LogNorm())
-    plt.hexbin(E_x, E_y, extent=extent, gridsize=100, mincnt=1, linewidths=0.1, cmap=plt.get_cmap('viridis'))  # norm=mpl.colors.LogNorm())
+    plt.hexbin(E_x, E_y, extent=extent, gridsize=50, mincnt=1, linewidths=0.1, cmap=plt.get_cmap('viridis'))  # norm=mpl.colors.LogNorm())
 
     #cbar = plt.colorbar(im, fraction=0.025, pad=0.04, ticks=mpl.ticker.LogLocator(subs=range(10)))
     #cbar.set_label('Probability')
@@ -49,15 +51,115 @@ def plot_scatter_hist2d(E_x, E_y, name_x, name_y, name_title, fOUT):
 
 ##################################################################################################
 
-folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/Dummy/CompareModels/'
-files = {}
-files['1'] = 'events_023_mixed-Uni-U.p' #0validation-mc/mixed-Uni-023-U/events_023_mixed-Uni.p'
-files['2'] = 'events_023_mixed-Uni-V.p' #0validation-mc/mixed-Uni-023-V/events_023_mixed-Uni.p'
+# TODO Baseline U-only DNN
+# folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/180906-1938/0validation/Compare_Th232U238bb0n_U-small/'
+# files = {}
+# files['1'] = '../Th232U238bb0n-mc-AllVesselAllVesselUni-023-U/events_023_Th232U238bb0n-mc-AllVesselAllVesselUni-U.hdf5'
+# files['2'] = '../Th232U238bb0n-mc-reduced-023-small/events_023_Th232U238bb0n-mc-reduced-small.hdf5'
 
-data = {}
-for key,model in files.items():
-    data[key] = pickle.load(open(folderRUNS + files[key], "rb"))
-    data[key]['MCRunEventNumber'] = [(RN, EN) for RN, EN in zip(data[key]['MCRunNumber'], data[key]['MCEventNumber'])]
+# TODO reduced DNN
+folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181030-1854/0validation/Compare_Th232U238bb0n_U-small/'
+files = {}
+files['1'] = '../Th232U238bb0n-mc-AllVesselUni-045-U/events_045_Th232U238bb0n-mc-AllVesselUni-U.hdf5'
+files['2'] = '../Th232U238bb0n-mc-reduced-045-small/events_045_Th232U238bb0n-mc-reduced-small.hdf5'
+
+# data = {}
+# for key,model in files.items():
+#     data[key] = pickle.load(open(folderRUNS + files[key], "rb"))
+#     data[key]['MCRunEventNumber'] = [(RN, EN) for RN, EN in zip(data[key]['MCRunNumber'], data[key]['MCEventNumber'])]
+
+print 'starting'
+# data = {}
+# for key, model in files.items():
+#     data[key] = read_hdf5_file_to_dict(folderRUNS + files[key])
+#     # data[key] = pickle.load(open(folderRUNS + files[key], "rb"))
+#     # files[key] = os.path.splitext(files[key])[0] + '.hdf5'
+#     # write_dict_to_hdf5_file(data=data[key], file=(folderRUNS + files[key]))
+#     print data[key].keys()
+#     print data[key].values()[0].shape[0]
+# #
+# data['1']['DNNPredTrueClassReduced'] = np.zeros(data['1']['DNNPredTrueClass'].shape, dtype=np.float32)
+# data['1']['numCC'] = np.zeros(data['1']['DNNPredTrueClass'].shape, dtype=np.float32)
+# idx_list = 0
+# range_i = 0
+# for i in xrange(data['1'].values()[0].shape[0]):
+#     index = np.where((data['1']['MCRunNumber'][i] == data['2']['MCRunNum']) &
+#                      (data['1']['MCEventNumber'][i] == data['2']['MCEventNum']) &
+#                      (data['1']['ID'][i] == data['2']['ID']))[0] #[0]
+#     if index.size == 0:
+#         data['1']['DNNPredTrueClassReduced'][i] = -2.0
+#     elif index.size > 1:
+#         print i , index, \
+#             data['1']['DNNTrueClass'][i], data['1']['DNNPredTrueClass'][i], \
+#             data['2']['DNNTrueClass'][index[0]], data['2']['DNNPredTrueClass'][index[0]], \
+#             data['2']['DNNTrueClass'][index[1]], data['2']['DNNPredTrueClass'][index[1]]
+#     else:
+#         data['1']['DNNPredTrueClassReduced'][i] = data['2']['DNNPredTrueClass'][index[0]]
+#         data['1']['numCC'][i] = data['2']['numCC'][index[0]]
+#     if i%10000==0:
+#         print i
+#
+# write_dict_to_hdf5_file(data['1'], folderRUNS + 'combined.hdf5')
+
+data = read_hdf5_file_to_dict(folderRUNS + 'combined.hdf5')
+
+maskBDT = True
+# for bdt_var in filter(lambda x: 'BDT' in x, data.keys()):
+#     maskBDT = maskBDT & (data[bdt_var] != -2.0)
+
+# maskSS = maskBDT & (data['CCIsSS'] == 1) & (data['DNNPredTrueClassReduced'] != -2.0) & (data['DNNPredTrueClassReduced'] >= 0.02)
+maskSS = maskBDT & (data['numCC'] == 1) & (data['DNNPredTrueClassReduced'] != -2.0)  & (data['DNNPredTrueClassReduced'] >= 0.02)
+maskMS = np.invert(maskSS)
+
+# maskROI = (np.sum(data['CCPurityCorrectedEnergy'], axis=1) > 2400.) & \
+#           (np.sum(data['CCPurityCorrectedEnergy'], axis=1) < 2800.)
+maskROI = True
+
+maskBKG = (data['DNNTrueClass'] == 0)
+maskSIG = (data['DNNTrueClass'] == 1)
+
+plot_histogram_vs_threshold(fOUT=folderRUNS + 'histogram_SS_vs_threshold-SIG.pdf',
+                                data=[data['DNNPredTrueClass'][maskSIG & maskROI & maskSS],
+                                      data['DNNPredTrueClassReduced'][maskSIG & maskROI & maskSS]],
+                                label=['Raw', 'Reduced'])
+
+plot_histogram_vs_threshold(fOUT=folderRUNS + 'histogram_SS_vs_threshold-BKG.pdf',
+                                data=[data['DNNPredTrueClass'][maskBKG & maskROI & maskSS],
+                                      data['DNNPredTrueClassReduced'][maskBKG & maskROI & maskSS]],
+                                label=['Raw', 'Reduced'])
+
+plot_histogram_vs_threshold(fOUT=folderRUNS + 'histogram_SS_vs_threshold-Raw.pdf',
+                                data=[data['DNNPredTrueClass'][maskBKG & maskROI & maskSS],
+                                      data['DNNPredTrueClass'][maskSIG & maskROI & maskSS]],
+                                label=['Background', 'Signal'])
+
+plot_histogram_vs_threshold(fOUT=folderRUNS + 'histogram_SS_vs_threshold-Reduced.pdf',
+                                data=[data['DNNPredTrueClassReduced'][maskBKG & maskROI & maskSS],
+                                      data['DNNPredTrueClassReduced'][maskSIG & maskROI & maskSS]],
+                                label=['Background', 'Signal'])
+
+plot_ROC_curve(fOUT=folderRUNS + 'roc_curve.pdf',
+               dataTrue=[data['DNNTrueClass'][maskROI & maskSS],
+                         data['DNNTrueClass'][maskROI & maskSS],
+                         data['DNNTrueClass'][maskROI & maskSS],
+                         data['DNNTrueClass'][maskROI & maskSS],
+                         data['DNNTrueClass'][maskROI & maskSS]],
+               dataPred=[data['DNNPredTrueClass'][maskROI & maskSS],
+                         data['DNNPredTrueClassReduced'][maskROI & maskSS],
+                         data['BDT-SS-Std'][maskROI & maskSS],
+                         data['BDT-SS-Uni'][maskROI & maskSS],
+                         data['BDT-DNN'][maskROI & maskSS],],
+               label=['Raw', 'Reduced', 'BDT-Std', 'BDT-Uni', 'DNN+Stand'])
+
+plot_scatter_hist2d(data['DNNPredTrueClass'][maskROI & maskSIG & maskSS],
+                    data['DNNPredTrueClassReduced'][maskROI & maskSIG & maskSS],
+                    'Raw', 'Reduced', 'Signal', folderRUNS + 'hist2d_SS_SIG.pdf')
+
+plot_scatter_hist2d(data['DNNPredTrueClass'][maskROI & maskBKG & maskSS],
+                    data['DNNPredTrueClassReduced'][maskROI & maskBKG & maskSS],
+                    'Raw', 'Reduced', 'Background', folderRUNS + 'hist2d_SS_BKG.pdf')
+
+exit()
 
 data['mean'] = {}
 data['mean']['DNNPred'] = np.add(data['1']['DNNPred'], data['2']['DNNPred'])/2.
