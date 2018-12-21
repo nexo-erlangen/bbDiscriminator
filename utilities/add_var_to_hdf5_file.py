@@ -16,7 +16,7 @@ compression = ('gzip', 4)
 
 def main():
     # folderBDT = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/bdt_combined_hdf5/'
-    folderBDT = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/bdt_combined_hdf5_v2/'
+    folderBDT = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/temp/'
     folderDATA = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/'
 
     # folderIN = folderDATA + 'mixed_WFs_Uni_MC_P2/'
@@ -35,33 +35,61 @@ def main():
     # file_bdt = {}
     # file_bdt[0] = folderBDT + 'AllVessel_Th232_withBDt.hdf5'
 
-    folderIN = folderDATA + 'bb0n_WFs_Uni_MC_P2/'
-    folderOUT = folderDATA + 'bb0n_WFs_Uni_MC_P2-bdt/'
+    # folderIN = folderDATA + 'bb0n_WFs_Uni_MC_P2/'
+    # folderOUT = folderDATA + 'bb0n_WFs_Uni_MC_P2-bdt/'
+    # file_bdt = {}
+    # file_bdt[1] = folderBDT + 'bb0n_withBDt.hdf5'
+
+    folderBDT = '/home/vault/capm/sn0515/PhD/Th_U-Wire/Data/Th228_Wfs_SS+MS_S5_Data-old/'
+    # folderDATA = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/'
+
+    # folderIN = folderDATA + 'Th228_WFs_S5_Data_P2/'
+    # folderOUT = folderDATA + 'Th228_WFs_S5_Data_P2-new/'
     file_bdt = {}
-    file_bdt[1] = folderBDT + 'bb0n_withBDt.hdf5'
+    file_bdt[0] = [join(folderBDT, f) for f in listdir(folderBDT) if isfile(join(folderBDT, f)) and '.hdf5' in f]
+    # file_bdt[0] = [join(folderBDT, 'all.hdf5')]
 
     print
-    print 'Input Folder:\t', folderIN
-    print 'Output Folder:\t', folderOUT
+    # print 'Input Folder:\t', folderIN
+    # print 'Output Folder:\t', folderOUT
     print
 
-    files = [f for f in listdir(folderIN) if isfile(join(folderIN, f)) and '.hdf5' in f]
+    # filesIN = [f for f in listdir(folderIN) if isfile(join(folderIN, f)) and '.hdf5' in f]
 
-    print 'Number of Files:\t', len(files)
+    # print 'Number of Files:\t', len(filesIN)
     print
 
     data_bdt = {}
-    for id, file in file_bdt.items():
-        print 'reading BDT file:\t', file
+    for id, files in file_bdt.items():
         data_bdt[id] = {}
-        f = h5py.File(str(file), "r")
-        for key in f.keys():
-            data_bdt[id][key] = np.asarray(f[key])
-        f.close()
-        print 'Number events in file:\t', data_bdt[id].values()[0].shape[0]
-        print
+        for i, file in enumerate(files):
+            print 'reading BDT file:\t', file
+            temp = {}
+            f = h5py.File(str(file), "r")
+            for key in f.keys():
+                # data_bdt[id][key] = np.asarray(f[key])
+                temp[key] = np.asarray(f[key])
+            f.close()
+            if i == 0:
+                for key in temp.keys():
+                    data_bdt[id][key] = temp[key]
+            else:
+                for key in temp.keys():
+                    data_bdt[id][key] = np.concatenate((data_bdt[id][key], temp[key]))
+            print 'Number events in file:\t', temp.values()[0].shape[0]
+            print 'Total Number events:\t', data_bdt[id].values()[0].shape[0]
+            print
 
-    for file in files:
+    print folderBDT + '../all.hdf5'
+
+    fOUT = h5py.File(folderBDT + '../all.hdf5', "w")
+    for key in data_bdt[0].keys():
+        fOUT.create_dataset(key, data=data_bdt[0][key], dtype=np.float32)
+
+    fOUT.close()
+    exit()
+
+    for file in filesIN:
         print 'adjusting file:\t\t', file
         add_var_to_file(folderIN+file, folderOUT+file, data_bdt=data_bdt)
         # break
@@ -77,32 +105,7 @@ def add_var_to_file(fileIN, fileOUT, data_bdt):
 
 
     keyID = {}
-    keyID['disc_ss_dnn'] = 'BDT-DNN'
-
-    # keyID = {}
-    # keyID['numColl'] = 'CCNumCollWires'
-    # keyID['risetime'] = 'CCRisetime'
-    # keyID['maxV'] = 'CCMaxVFraction'
-    # keyID['stand'] = 'CCStandoff'
-    # keyID['event_sizeV'] = 'MCEventSizeV'
-    # keyID['event_sizeU'] = 'MCEventSizeU'
-    # keyID['event_sizeR'] = 'MCEventSizeR'
-    # keyID['event_sizeZ'] = 'MCEventSizeZ'
-    # keyID['disc_ss_std'] = 'BDT-SS-Std'
-    # keyID['disc_ss_noStand'] = 'BDT-SS-Uni'
-    # keyID['bdt_ss'] = 'BDT-SS'
-    # keyID['bdt_ss_withV'] = 'BDT-SS-V'
-    # keyID['bdt_ss_noStand'] = 'BDT-SS-NoStandoff'
-    # keyID['bdt_all'] = 'BDT-SSMS'
-
-    # keySkip = ['bdt_bins', 'energy', 'roc_disc_ss_std', 'roc_disc_ss_noStand', 'mult']
-
-    # print fIN.keys()
-    # print data_bdt[0].keys()
-    #
-    # print fIN.values()[0].size
-    # for i in data_bdt.keys():
-    #     print data_bdt[i]['dnn_var'].size, data_bdt[i]['runNum'].size
+    keyID['APDEnergy'] = 'APDEnergy'
 
     fOUT_new = {}
     for key in keyID:
@@ -112,8 +115,8 @@ def add_var_to_file(fileIN, fileOUT, data_bdt):
 
     for i in xrange(len(fIN_EventNum)):
         id = fIN_ID[i]
-        index = np.where(np.logical_and(fIN_RunNum[i] == data_bdt[id]['runNum'],
-                                        fIN_EventNum[i] == data_bdt[id]['eventNum']))[0][0]
+        index = np.where(np.logical_and(fIN_RunNum[i] == data_bdt[id]['MCRunNumber'],
+                                        fIN_EventNum[i] == data_bdt[id]['MCEventNumber']))[0][0]
 
         for key in keyID:
             fOUT_new[keyID[key]][i] = data_bdt[id][key][index]

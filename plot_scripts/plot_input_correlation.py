@@ -16,7 +16,9 @@ def main():
     # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/U238_WFs_AllVessel_MC_P2/'
     # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/gamma_WFs_AllVessel_MC_P2/'
     # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_Uni_MC_P2/'
-    folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_AllVessel_MC_P2/'
+    # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_AllVessel_MC_P2/'
+    # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/Th228_WFs_S11_MC_P2/'
+    folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/Xe137_WFs_Uni_MC_P2/'
     folderOUT = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Plots/'
 
     files = [os.path.join(folderIN, f) for f in os.listdir(folderIN) if os.path.isfile(os.path.join(folderIN, f))]
@@ -41,10 +43,11 @@ def main():
     # plot_input_correlations_heat(ys[:, (EventInfo['ID'] == 0) & mask], folderOUT + 'Correlation_matrix_U238_AllVessel-heat.png')
     # plot_input_correlations_heat(ys[:, (EventInfo['ID'] == 0) & mask], folderOUT + 'Correlation_matrix_Th232_AllVessel-heat.png')
     # plot_input_correlations_heat(ys[:, (EventInfo['ID'] == 1) & mask], folderOUT + 'Correlation_matrix_bb0n-heat.png')
-    plot_input_correlations_heat(ys[:, (EventInfo['ID'] == 0) & mask], folderOUT + 'Correlation_matrix_gamma_AllVessel-heat.png')
-    plot_input_correlations_heat(ys[:, (EventInfo['ID'] == 1) & mask], folderOUT + 'Correlation_matrix_bb0nE_forAllVessel-heat.png')
+    # plot_input_correlations_heat(ys[:, (EventInfo['ID'] == 0) & mask], folderOUT + 'Correlation_matrix_gamma_AllVessel-heat.png')
+    # plot_input_correlations_heat(ys[:, (EventInfo['ID'] == 1) & mask], folderOUT + 'Correlation_matrix_bb0nE_forAllVessel-heat.png')
     # plot_input_correlations_heat(ys[:, (EventInfo['ID'] == 0) & mask], folderOUT + 'Correlation_matrix_gamma-heat.png')
     # plot_input_correlations_heat(ys[:, (EventInfo['ID'] == 1) & mask], folderOUT + 'Correlation_matrix_bb0nE_forUni-heat.png')
+    plot_input_correlations_heat(ys[:, (EventInfo['ID'] == 0) & mask], folderOUT + 'Correlation_matrix_Xe137_Uni_MC-heat.png')
 
     # plot_input_correlations(ys[:, (EventInfo['ID'] == 0) & mask], folderOUT + 'Correlation_matrix_gamma.png')
     # plot_input_correlations(ys[:, (EventInfo['ID'] == 1) & mask], folderOUT + 'Correlation_matrix_bb0nE.png')

@@ -41,7 +41,7 @@ def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f
     :return: tuple output: Yields a tuple which contains a full batch of images and labels (+ mc_info depending on yield_mc_info).
     """
 
-    from keras.utils import to_categorical
+
 
     if isinstance(files, list): pass
     elif isinstance(files, basestring): files = [files]
@@ -65,7 +65,10 @@ def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f
                 if key in ['wfs']: continue
                 eventInfo[key] = np.asarray(f[key])
             ys = encode_targets(eventInfo, f_size, class_type)
-            ys = to_categorical(ys, 2) #convert to one-hot vectors
+
+
+            print eventInfo.keys()
+            exit()
 
             lst = select_events(eventInfo, select_dict=select_dict, shuffle=True)
             # lst = np.arange(0, f_size, batchsize)
@@ -75,16 +78,16 @@ def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f
                 xs = np.asarray(f['wfs'])[:, wireindex]
                 # print xs.shape
 
-                # TODO these 2 lines for baseline U-only 2x(Bx350x38x1)
+                #TODO these 2 lines for baseline U-only 2x(Bx350x38x1)
                 xs = np.swapaxes(xs, 0, 1)
                 xs = np.swapaxes(xs, 2, 3)
 
-                # TODO these 2 lines for UV (Bx350x38x4)
+                #TODO these 2 lines for UV (Bx350x38x4)
                 # xs = np.swapaxes(xs, 1, 3)
                 # xs = np.squeeze(xs)
 
-                # TODO these 2 lines for U-only (Bx350x76x1)
-                # xs = np.reshape(xs, (batchsize, 76, 350, -1))
+                #TODO these 2 lines for U-only (Bx350x76x1)
+                # xs = np.reshape(xs, (xs.shape[0], 76, 350, -1))
                 # xs = np.swapaxes(xs, 1, 2)
 
                 # print xs.shape
@@ -95,23 +98,31 @@ def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f
                 # if len(batch) != batchsize: continue
 
                 if not yield_mc_info in [-1,2]:
-                    # TODO this line for baseline U-only 2x(Bx350x38x1)
+                    #TODO this line for baseline U-only 2x(Bx350x38x1)
                     xs_i = xs[:, batch]
 
-                    # TODO this line for U-only or UV (Bx350x38/76x1/2/4)
+                    #TODO this line for U-only or UV (Bx350x38/76x1/2/4)
                     # xs_i = xs[batch]
 
                     ys_i = ys[batch]
-                    # xs_i_aux = np.dstack((eventInfo['CCPosU'][batch],
-                    #                       eventInfo['CCPosV'][batch],
-                    #                       eventInfo['CCPosZ'][batch],
-                    #                       eventInfo['CCCorrectedEnergy'][batch]))
+                    # w = np.ones(len(batch), dtype='float32')
+                    # w_dict = {0: 1.765544106559437, 1: 0.6975434903487171} #test
+                    # for id in [0,1]:
+                    #     for i in np.nonzero(ys_i[:, id]==1):
+                    #         w[i] = w_dict[id]
+
+                    xs_i_aux = np.dstack((eventInfo['CCPosU'][batch],
+                                          eventInfo['CCPosV'][batch],
+                                          eventInfo['CCPosZ'][batch],
+                                          eventInfo['CCCorrectedEnergy'][batch]))
                     # xs_i_aux = xs_i_aux[..., np.newaxis]
 
                 # if yield_mc_info == 0: yield (xs_i_aux, ys_i)
                 # elif yield_mc_info == 1: yield (xs_i_aux, ys_i) + ({key: eventInfo[key][batch] for key in eventInfo.keys()},)
-                # if yield_mc_info == 0: yield ([xs_i, xs_i_aux], [ys_i, ys_i, ys_i])
-                # elif yield_mc_info == 1: yield ([xs_i, xs_i_aux], [ys_i, ys_i, ys_i]) + ({key: eventInfo[key][batch] for key in eventInfo.keys()},)
+                # if yield_mc_info == 0: yield ([xs_i, xs_i_aux], ys_i)
+                # elif yield_mc_info == 1: yield ([xs_i, xs_i_aux], ys_i) + ({key: eventInfo[key][batch] for key in eventInfo.keys()},)
+                # if yield_mc_info == 0: yield ([xs_i[0], xs_i[1], xs_i_aux], [ys_i, ys_i, ys_i])
+                # elif yield_mc_info == 1: yield ([xs_i[0], xs_i[1], xs_i_aux], [ys_i, ys_i, ys_i]) + ({key: eventInfo[key][batch] for key in eventInfo.keys()},)
                 # if yield_mc_info == 0: yield (xs_i, ys_i)
                 # elif yield_mc_info == 1: yield (xs_i, ys_i) + ({key: eventInfo[key][batch] for key in eventInfo.keys()},)
                 if   yield_mc_info == 0:    yield (list(xs_i), ys_i)
@@ -135,8 +146,13 @@ def encode_targets(y_dict, batchsize, class_type=None):
     if class_type == None:
         train_y = np.zeros(batchsize, dtype='float32')
     elif class_type == 'binary_bb_gamma':
+        from keras.utils import to_categorical
         train_y = np.zeros((batchsize, 1), dtype='float32')
         train_y[:, 0] = y_dict['ID']  # event ID (0: gamma, 1: bb)
+        ys = to_categorical(ys, 2)  # convert to one-hot vectors
+    elif class_type == 'energy':
+        train_y = np.zeros((batchsize, 1), dtype='float32')
+        train_y[:, 0] = y_dict['MCEnergy']
     else:
         raise ValueError('Class type ' + str(class_type) + ' not supported!')
     return train_y
@@ -182,8 +198,10 @@ def read_EventInfo_from_files(files, maxNumEvents=0):
         f = h5py.File(str(filename), "r")
         for key in f.keys():
             if key in ['wfs', 'gains']: continue
-            if idx == 0:    eventInfo[key] = np.asarray(f[key])
-            else:           eventInfo[key] = np.concatenate((eventInfo[key], np.asarray(f[key])))
+            if idx == 0:
+                eventInfo[key] = np.asarray(f[key])
+            else:
+                eventInfo[key] = np.concatenate((eventInfo[key], np.asarray(f[key])))
         f.close()
         if maxNumEvents > 0 and len(eventInfo.values()[0]) >= maxNumEvents: break
     if maxNumEvents == 0 or len(eventInfo.values()[0]) <= maxNumEvents:

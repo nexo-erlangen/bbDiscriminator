@@ -71,7 +71,6 @@ for idx in range(minLength):
     fileOUT = args.folderOUT + str(counter) + "-shuffled.hdf5"
     print "creating:\t", fileOUT, "\t\t" , eventInfoNew['wfs'].shape
     chunks_wfs = (batchsize,) + eventInfoNew['wfs'].shape[1:] if compression[0] is not None else None
-    # chunks_wfs = None
     print "creating:\tusing chunksize:\t", chunks_wfs
 
     fOUT = h5py.File(fileOUT, "w")

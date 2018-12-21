@@ -1,7 +1,7 @@
 from keras.models import Model
 from keras.layers import Input
 from keras.layers import Dense, LocallyConnected1D, LocallyConnected2D
-from keras.layers import Flatten, Dropout, BatchNormalization, Activation
+from keras.layers import Flatten, Dropout, BatchNormalization, Activation, SpatialDropout2D
 from keras.layers.convolutional import Conv2D, Conv1D
 from keras.layers.pooling import MaxPooling2D, AveragePooling2D, GlobalAveragePooling2D
 from keras.layers.merge import Concatenate, Add
@@ -100,29 +100,87 @@ def create_shared_dcnn_network_4():
 
     return Model(inputs=inputUV, outputs=output)
 
-def create_shared_inception_network_2_extra_input():
-    auxiliary_input = Input(shape=(10, 4, 1), name='aux_input')
-    x = Conv2D(10, kernel_size=(1, 4), padding='same', activation='relu', kernel_initializer="glorot_normal")(auxiliary_input)
-    # x = Conv2D(10, kernel_size=(1, 4), padding='same', activation='relu', kernel_initializer="glorot_uniform")(x)
-    # x = Conv2D(10, kernel_size=(1, 4), padding='same', activation='relu', kernel_initializer="glorot_uniform")(x)
-    # x = Conv2D(20, kernel_size=(1, 4), padding='same', activation='relu', kernel_initializer="glorot_uniform")(x)
-    x = Conv2D(20, kernel_size=(1, 4), padding='same', activation='relu', kernel_initializer="glorot_normal")(x)
-    x = Conv2D(40, kernel_size=(1, 4), padding='same', activation='relu', kernel_initializer="glorot_normal")(x)
-    merge_pos = Flatten()(x)
-    # merge_pos = Dense(56, activation='relu', kernel_initializer="glorot_uniform")(x)
-    output_pos = Dense(2, name='Output_Pos', activation='softmax', kernel_initializer="glorot_normal")(merge_pos)
+def create_shared_inception_network_2_extra_input(kwargs_inc={}):
+    kwargs_out = dict(kwargs_inc)
+    for key in ['dropout', 'activity_regularizer', 'kernel_regularizer']:
+        kwargs_out.pop(key, None)
 
-    return Model(inputs=[auxiliary_input], outputs=[output_pos])
+    # auxiliary_input = Input(shape=(10, 4), name='Aux_Input')
+    # x = LocallyConnected1D(10, kernel_size=1, activation='relu', name='21', **kwargs_inc)(auxiliary_input)
+    # x = LocallyConnected1D(20, kernel_size=1, activation='relu', name='22', **kwargs_inc)(x)
+    # # x = LocallyConnected1D(40, kernel_size=1, activation='relu', name='21')(x)
+    # merge_pos = Flatten(name='Flatten_Pos')(x)
+    # output_pos = Dense(2, name='Output_Pos', activation='softmax', kernel_initializer="glorot_uniform", **kwargs_out)(merge_pos)
+    # # return Model(inputs=[auxiliary_input], outputs=[output_pos])
 
+    # auxiliary_input = Input(shape=(10, 4, 1), name='aux_input')
+    # x = Conv2D(10, kernel_size=(1, 4), padding='same', activation='relu', kernel_initializer="glorot_normal")(auxiliary_input)
+    # # # x = Conv2D(10, kernel_size=(1, 4), padding='same', activation='relu', kernel_initializer="glorot_uniform")(x)
+    # # # x = Conv2D(10, kernel_size=(1, 4), padding='same', activation='relu', kernel_initializer="glorot_uniform")(x)
+    # # # x = Conv2D(20, kernel_size=(1, 4), padding='same', activation='relu', kernel_initializer="glorot_uniform")(x)
+    # x = Conv2D(20, kernel_size=(1, 4), padding='same', activation='relu', kernel_initializer="glorot_normal")(x)
+    # x = Conv2D(40, kernel_size=(1, 4), padding='same', activation='relu', kernel_initializer="glorot_normal")(x)
+    # merge_pos = Flatten()(x)
+    # # # merge_pos = Dense(56, activation='relu', kernel_initializer="glorot_uniform")(x)
+    # output_pos = Dense(2, name='Output_Pos', activation='softmax', kernel_initializer="glorot_normal")(merge_pos)
+    # return Model(inputs=[auxiliary_input], outputs=[output_pos])
+
+    kwargs = {'padding': 'same',
+              'dropout': 0.0,
+              'BN': True,
+              'kernel_initializer': 'glorot_uniform'}
+    kwargs = merge_two_dicts(kwargs, kwargs_inc)
+
+    input = []
+    input.append(Input(shape=(350, 38, 1), name='Wire_1'))
+    input.append(Input(shape=(350, 38, 1), name='Wire_2'))
+
+    layers = []
+    layers.append(Conv_block(32, filter_size=(3, 3), name='ConvBl_1', **kwargs))
+    layers.append(Conv_block(32, filter_size=(3, 3), name='ConvBl_2', **kwargs))
+    layers.append([MaxPooling2D((4, 2), name='maxp_1')])
+    layers.append(Conv_block(64, filter_size=(3, 3), name='ConvBl_3', **kwargs))
+
+    num_filters = (64, (96, 128), (16, 32), 32) #TODO Real values from IncV1 Paper?
+    layers.append(InceptionV1_block(num_filters=num_filters, name='IncBl_1', kwargs_inc=kwargs_inc))
+    layers.append(InceptionV1_block(num_filters=num_filters, name='IncBl_2', kwargs_inc=kwargs_inc))
+    layers.append([MaxPooling2D((2, 2), name='maxp_2')]) # TODO Test Inception module with stride=2 instead of max pooling
+    layers.append(InceptionV1_block(num_filters=num_filters, name='IncBl_3', kwargs_inc=kwargs_inc))
+    layers.append(InceptionV1_block(num_filters=num_filters, name='IncBl_4', kwargs_inc=kwargs_inc))
+    layers.append([MaxPooling2D((2, 1), name='maxp_3')])
+    layers.append(InceptionV1_block(num_filters=num_filters, name='IncBl_5', kwargs_inc=kwargs_inc))
+    layers.append(InceptionV1_block(num_filters=num_filters, name='IncBl_6', kwargs_inc=kwargs_inc))
+    layers.append([MaxPooling2D((2, 1), name='maxp_4')])
+    layers.append(InceptionV1_block(num_filters=num_filters, name='IncBl_7', kwargs_inc=kwargs_inc))
+    layers.append(InceptionV1_block(num_filters=num_filters, name='IncBl_8', kwargs_inc=kwargs_inc))
+    layers.append(InceptionV1_block(num_filters=num_filters, name='IncBl_9', kwargs_inc=kwargs_inc))
+    layers.append(InceptionV1_block(num_filters=num_filters, name='IncBl_10', kwargs_inc=kwargs_inc))
+    layers.append([GlobalAveragePooling2D(name='GAverPool_Top')])
+
+    paths = assemble_network(input, layers)
+    merge_top = Concatenate(name='Concat_Top_1_and_2')(paths)
+
+    output_top = Dense(2, name='Output_Top', activation='softmax', kernel_initializer="glorot_uniform", **kwargs_out)(merge_top)
+    return Model(inputs=input, outputs=output_top)
+
+    x = Concatenate(name='Merge_Pos_and_Top')([merge_pos, merge_top])
+    x = Dense(64, activation='relu', name='31')(x)
+    x = Dense(64, activation='relu', name='32')(x)
+    x = Dense(64, activation='relu', name='33')(x)
+    output = Dense(2, name='Output', activation='softmax', kernel_initializer="glorot_uniform")(x)
+
+    return Model(inputs=[input[0], input[1], auxiliary_input], outputs=[output, output_top, output_pos])
+
+
+def create_shared_inception_network_2():
     # kwargs = {'padding': 'same',
     #           'dropout': 0.0,
     #           'BN': True,
     #           'kernel_initializer': 'glorot_uniform'}
     #
-    # input_a = Input(shape=(350, 76, 1), name='Wire_1')
-    #
     # input = []
-    # input.append(input_a)
+    # input.append(Input(shape=(350, 38, 1), name='Wire_1'))
+    # input.append(Input(shape=(350, 38, 1), name='Wire_2'))
     #
     # layers = []
     # layers.append(Conv_block(32, filter_size=(3, 3), **kwargs))
@@ -136,69 +194,14 @@ def create_shared_inception_network_2_extra_input():
     # layers.append([MaxPooling2D((2, 2))])
     # layers.append(InceptionV1_block(num_filters=num_filters))
     # layers.append(InceptionV1_block(num_filters=num_filters))
-    # layers.append([MaxPooling2D((2, 1))])
-    # layers.append(InceptionV1_block(num_filters=num_filters))
-    # layers.append(InceptionV1_block(num_filters=num_filters))
+    #
     # layers.append([GlobalAveragePooling2D()])
     #
     # paths = assemble_network(input, layers)
-    # merge_top = paths[0]
-    # output_top = Dense(2, name='Output_Top', activation='softmax', kernel_initializer="glorot_uniform")(merge_top)
-
+    #
     # merge = Concatenate(name='Flat_1_and_2')(paths)
     # output = Dense(2, name='Output', activation='softmax', kernel_initializer="glorot_uniform")(merge)
-    # return Model(inputs=input, outputs=output)
     #
-    # auxiliary_input = Input(shape=(10, 4), name='aux_input')
-    # x = LocallyConnected1D(10, kernel_size=1, activation='relu')(auxiliary_input)
-    # x = LocallyConnected1D(20, kernel_size=1, activation='relu')(x)
-    # x = LocallyConnected1D(40, kernel_size=1, activation='relu')(x)
-    # merge_pos = Flatten()(x)
-    # output_pos = Dense(2, name='Output_Pos', activation='softmax', kernel_initializer="glorot_uniform")(merge_pos)
-    #
-    # x = Concatenate(name='Merge_Pos_and_Top')([merge_pos, merge_top])
-    # x = Dense(64, activation='relu')(x)
-    # x = Dense(64, activation='relu')(x)
-    # x = Dense(64, activation='relu')(x)
-    # output = Dense(2, name='Output', activation='softmax', kernel_initializer="glorot_uniform")(x)
-    #
-    # # return Model(inputs=auxiliary_input, outputs=output)
-    #
-    # return Model(inputs=[input_a, auxiliary_input], outputs=[output, output_top, output_pos])
-
-
-def create_shared_inception_network_2():
-    # kwargs = {'padding': 'same',
-    #           'dropout': 0.0,
-    #           'BN': True,
-    #           'kernel_initializer': 'glorot_uniform'}
-    #
-    # input = []
-    # input.append(Input(shape=(350, 38, 4), name='Wire_1'))
-    # # input.append(Input(shape=(350, 76, 1), name='Wire_2'))
-    #
-    # layers = []
-    # layers.append(Conv_block(32, filter_size=(3, 3), **kwargs))
-    # layers.append(Conv_block(32, filter_size=(3, 3), **kwargs))
-    # layers.append([MaxPooling2D((4, 2))])
-    # layers.append(Conv_block(64, filter_size=(3, 3), **kwargs))
-    #
-    # num_filters = (64, (96, 128), (16, 32), 32)  # TODO Real values from IncV1 Paper?
-    # layers.append(InceptionV1_block(num_filters=num_filters))
-    # layers.append(InceptionV1_block(num_filters=num_filters))
-    # layers.append([MaxPooling2D((2, 2))])  # TODO Test Inception module with stride=2 instead of max pooling
-    # layers.append(InceptionV1_block(num_filters=num_filters))
-    # layers.append(InceptionV1_block(num_filters=num_filters))
-    # layers.append([MaxPooling2D((2, 1))])
-    # layers.append(InceptionV1_block(num_filters=num_filters))
-    # layers.append(InceptionV1_block(num_filters=num_filters))
-    # layers.append([GlobalAveragePooling2D()])
-    #
-    # paths = assemble_network(input, layers)
-    #
-    # merge = paths[0]
-    # # merge = Concatenate(name='Flat_1_and_2')(paths)
-    # output = Dense(2, name='Output', activation='softmax', kernel_initializer="glorot_uniform")(merge)
     # return Model(inputs=input, outputs=output)
 
 
@@ -214,33 +217,32 @@ def create_shared_inception_network_2():
     input.append(Input(shape=(350, 38, 1), name='Wire_2'))
 
     layers = []
-    layers.append(Conv_block(32, filter_size=(3, 3), **kwargs))
-    layers.append(Conv_block(32, filter_size=(3, 3), **kwargs))
-    layers.append([MaxPooling2D((4, 2))])
-    layers.append(Conv_block(64, filter_size=(3, 3), **kwargs))
+    layers.append(Conv_block(32, filter_size=(3, 3), name='1', **kwargs))
+    layers.append(Conv_block(32, filter_size=(3, 3), name='2', **kwargs))
+    layers.append([MaxPooling2D((4, 2), name='3')])
+    layers.append(Conv_block(64, filter_size=(3, 3), name='4', **kwargs))
 
     num_filters = (64, (96, 128), (16, 32), 32) #TODO Real values from IncV1 Paper?
-    num_filters_deep = (96, (96, 192), (64, 96), 96)
-    layers.append(InceptionV1_block(num_filters=num_filters))
-    layers.append(InceptionV1_block(num_filters=num_filters))
-    layers.append([MaxPooling2D((2, 2))]) # TODO Test Inception module with stride=2 instead of max pooling
-    layers.append(InceptionV1_block(num_filters=num_filters))
-    layers.append(InceptionV1_block(num_filters=num_filters))
-    layers.append([MaxPooling2D((2, 1))])
-    layers.append(InceptionV1_block(num_filters=num_filters))
-    layers.append(InceptionV1_block(num_filters=num_filters))
-    layers.append([MaxPooling2D((2, 1))])
-    layers.append(InceptionV1_block(num_filters=num_filters))
-    layers.append(InceptionV1_block(num_filters=num_filters))
-    layers.append(InceptionV1_block(num_filters=num_filters))
-    layers.append(InceptionV1_block(num_filters=num_filters))
+    layers.append(InceptionV1_block(num_filters=num_filters, name='5'))
+    layers.append(InceptionV1_block(num_filters=num_filters, name='6'))
+    layers.append([MaxPooling2D((2, 2), name='7')]) # TODO Test Inception module with stride=2 instead of max pooling
+    layers.append(InceptionV1_block(num_filters=num_filters, name='8'))
+    layers.append(InceptionV1_block(num_filters=num_filters, name='9'))
+    layers.append([MaxPooling2D((2, 1), name='10')])
+    layers.append(InceptionV1_block(num_filters=num_filters, name='11'))
+    layers.append(InceptionV1_block(num_filters=num_filters, name='12'))
+    layers.append([MaxPooling2D((2, 1), name='13')])
+    layers.append(InceptionV1_block(num_filters=num_filters, name='14'))
+    layers.append(InceptionV1_block(num_filters=num_filters, name='15'))
+    layers.append(InceptionV1_block(num_filters=num_filters, name='16'))
+    layers.append(InceptionV1_block(num_filters=num_filters, name='17'))
 
-    layers.append([GlobalAveragePooling2D()])
+    layers.append([GlobalAveragePooling2D(name='18')])
 
     paths = assemble_network(input, layers)
 
-    merge = Concatenate(name='Flat_1_and_2')(paths)
-    output = Dense(2, name='Output', activation='softmax', kernel_initializer="glorot_uniform")(merge)
+    merge = Concatenate(name='Conc_Top_1_and_2')(paths)
+    output = Dense(2, name='Output_Top', activation='softmax', kernel_initializer="glorot_uniform")(merge)
 
     return Model(inputs=input, outputs=output)
 
@@ -307,7 +309,7 @@ def create_shared_inception_network_4():
 
     return Model(inputs=inputUV, outputs=output)
 
-def Conv_block(num_filters, filter_size=(3,3), max_pooling=None, padding='same', dropout=0.0, BN=False, **kwargs):
+def Conv_block(num_filters, filter_size=(3,3), max_pooling=None, padding='same', dropout=0.0, BN=False, name='', **kwargs):
     """
     2D Convolutional block followed by optional BatchNormalization, Activation (not optional), MaxPooling or Dropout.
     C-(BN)-A-(MP)-(D)
@@ -323,20 +325,21 @@ def Conv_block(num_filters, filter_size=(3,3), max_pooling=None, padding='same',
 
     x = []
     if BN == False:
-        x.append(Conv2D(num_filters, kernel_size=filter_size, padding=padding, activation='relu', **kwargs))
+        x.append(Conv2D(num_filters, kernel_size=filter_size, padding=padding, activation='relu', name='conv_%s'%(name), **kwargs))
     else:
         channel_axis = -1 if K.image_data_format() == "channels_last" else 1
-        x.append(Conv2D(num_filters, kernel_size=filter_size, padding=padding, **kwargs))
-        x.append(BatchNormalization(axis=channel_axis, momentum=0.5, scale=False)) #momentum=0.99 #TODO use 0.5 again
-        x.append(Activation('relu'))
+        x.append(Conv2D(num_filters, kernel_size=filter_size, padding=padding, name='conv_%s'%(name), **kwargs))
+        x.append(BatchNormalization(axis=channel_axis, momentum=0.5, scale=False, name='bn_%s'%(name))) #momentum=0.99 #TODO use 0.5 again
+        x.append(Activation('relu', name='act_%s'%(name)))
 
     if max_pooling is not None:
-        x.append(MaxPooling2D(strides=max_pooling, padding=padding))
+        x.append(MaxPooling2D(strides=max_pooling, padding=padding, name='maxp_%s'%(name)))
     if dropout > 0.0:
-        x.append(Dropout(dropout))
+        # x.append(Dropout(dropout, name='drop_%s'%(name)))
+        x.append(SpatialDropout2D(dropout, name='drop_%s'%(name)))
     return x
 
-def InceptionV1_block(num_filters=(64, (64, 96), (48, 64), 32)):
+def InceptionV1_block(num_filters=(64, (64, 96), (48, 64), 32), name='', kwargs_inc={}):
     """
     2D Inception V1 block. Each Conv2D Element consists of Conv2D, BatchNorm, Activation.
     Inception towers are: 1x1, 1x1 + 3x3, 1x1 + 5x5, AverPool + 1x1
@@ -350,19 +353,20 @@ def InceptionV1_block(num_filters=(64, (64, 96), (48, 64), 32)):
               'BN': True,
               'strides': 1,
               'use_bias': False}
+    kwargs = merge_two_dicts(kwargs, kwargs_inc)
 
     branch1x1 = []
-    branch1x1.append(Conv_block(num_filters[0], (1, 1), **kwargs))
+    branch1x1.append(Conv_block(num_filters[0], (1, 1), name='1x1_%s'%(name), **kwargs))
     branch1x1 = sum(branch1x1, [])
 
     branch3x3 = []
-    branch3x3.append(Conv_block(num_filters[1][0], (1, 1), **kwargs))
-    branch3x3.append(Conv_block(num_filters[1][1], (3, 3), **kwargs))
+    branch3x3.append(Conv_block(num_filters[1][0], (1, 1), name='3x3-1_%s'%(name), **kwargs))
+    branch3x3.append(Conv_block(num_filters[1][1], (3, 3), name='3x3-2_%s'%(name), **kwargs))
     branch3x3 = sum(branch3x3, [])
 
     branch5x5 = []
-    branch5x5.append(Conv_block(num_filters[2][0], (1, 1), **kwargs))
-    branch5x5.append(Conv_block(num_filters[2][1], (5, 5), **kwargs))
+    branch5x5.append(Conv_block(num_filters[2][0], (1, 1), name='5x5-1_%s'%(name), **kwargs))
+    branch5x5.append(Conv_block(num_filters[2][1], (5, 5), name='5x5-2_%s'%(name), **kwargs))
     branch5x5 = sum(branch5x5, [])
 
     # branch7x7 = []
@@ -372,11 +376,11 @@ def InceptionV1_block(num_filters=(64, (64, 96), (48, 64), 32)):
     # branch7x7 = sum(branch7x7, [])
 
     branch_pool = []
-    branch_pool.append([MaxPooling2D((3, 3), strides=(1, 1), padding='same')])
-    branch_pool.append(Conv_block(num_filters[3], (1, 1), **kwargs))
+    branch_pool.append([MaxPooling2D((3, 3), strides=(1, 1), padding='same', name='maxp_pool_%s'%(name))])
+    branch_pool.append(Conv_block(num_filters[3], (1, 1), name='conv_pool_%s'%(name), **kwargs))
     branch_pool = sum(branch_pool, [])
 
-    concat = Concatenate(axis=channel_axis)
+    concat = Concatenate(axis=channel_axis, name='conc_%s'%(name))
 
     return [branch1x1, branch3x3, branch5x5, branch_pool, concat]
 
@@ -712,4 +716,10 @@ def create_shared_DEEPcnn_network():
     #output_TPC = Dense(1, activation='sigmoid', name='Output_TPC')(merge_TPC_1_2)
 
     return Model(inputs=[visible_U_1, visible_V_1, visible_U_2, visible_V_2], outputs=[output_xyze])    #outputs=[output_xyze, output_TPC])
+
+def merge_two_dicts(x, y):
+    """Given two dicts, merge them into a new dict as a shallow copy."""
+    z = x.copy()
+    z.update(y)
+    return z
 

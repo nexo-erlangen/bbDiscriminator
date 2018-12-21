@@ -31,7 +31,7 @@ fletcher32 = True
 shuffle = False
 compression = ('gzip', 4)
 
-counter = 0
+counter = 18 #0
 for index, filename in enumerate(files):
 	print "reading:\t", filename, 
 											

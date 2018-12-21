@@ -13,28 +13,17 @@ from plot_scripts.plot_traininghistory import *
 from plot_scripts.plot_validation import *
 
 def main(args):
-    frac_train = {'mixedUniMC': 0.90}
-    frac_val   = {'mixedUniMC': 0.10}
-    # frac_train = {'mixedAllVesselMC': 0.90}
-    # frac_val = {'mixedAllVesselMC': 0.10}
+    # frac_train = {'mixedUniMC': 0.90}
+    # frac_val   = {'mixedUniMC': 0.10}
+    frac_train = {'mixedAllVesselMC': 0.90}
+    frac_val = {'mixedAllVesselMC': 0.10}
     # frac_train = {'mixedreducedMC': 0.90}
     # frac_val = {'mixedreducedMC': 0.10}
 
     splitted_files = splitFiles(args, mode=args.mode, frac_train=frac_train, frac_val=frac_val)
 
-    #TODO InputCorrelationPlot with E/X/Y/Z and signal/bkgd in different colors
-    # plotInputCorrelation(args, splitted_files['train'], add='train')
-    # plotInputCorrelation(args, splitted_files['val'], add='val')
-
     executeCNN(args, splitted_files, args.var_targets, args.cnn_arch, args.batchsize, (args.num_weights, args.num_epoch),
                mode=args.mode, n_gpu=(args.num_gpu, 'avolkov'), shuffle=(False, None), tb_logger=args.tb_logger)
-
-    #TODO Do some final plots?
-    # print 'final plots \t start'
-    # plot.final_plots(folderOUT=args.folderOUT, obs=pickle.load(open(args.folderOUT + "save.p", "rb")))
-    # plot_traininghistory(args)
-    # print 'final plots \t end'
-
 
 
 def executeCNN(args, files, var_targets, nn_arch, batchsize, epoch, mode, n_gpu=(1, 'avolkov'), shuffle=(False, None), tb_logger=False):
@@ -55,6 +44,15 @@ def executeCNN(args, files, var_targets, nn_arch, batchsize, epoch, mode, n_gpu=
     :param bool tb_logger: Declares if a tb_callback should be used during training (takes longer to train due to overhead!).
     """
 
+    gen_kwargs = {
+        'batchsize': batchsize,
+        'wires': args.wires,
+        'class_type': var_targets,
+        'select_dict': args.select_dict
+    }
+    generate_batches_from_files(files['train'], yield_mc_info=0, **gen_kwargs)
+    exit()
+
     print '\nEpoch Interval:\t', epoch[0], ' - ', epoch[1], '\n'
 
     if epoch[0] == 0:
@@ -68,6 +66,7 @@ def executeCNN(args, files, var_targets, nn_arch, batchsize, epoch, mode, n_gpu=
             raise ValueError('Currently, this is not implemented')
         elif nn_arch == 'Inception':
             if args.wires in ['U', 'V', 'small']:
+                # model = create_shared_inception_network_2_extra_input()
                 model = create_shared_inception_network_2() #create_shared_inception_network_2_extra_input() # TODO model = create_shared_inception_network_2()
             elif args.wires in ['UV', 'U+V']:
                 model = create_shared_inception_network_2() # TODO model = create_shared_inception_network_4()
@@ -77,16 +76,40 @@ def executeCNN(args, files, var_targets, nn_arch, batchsize, epoch, mode, n_gpu=
         else:
             raise ValueError('Currently, only DCNN and Inception are available as nn_arch')
     else:
+        # pass
         model = load_trained_model(args)
 
     if mode == 'train':
+        # print 'start model'
+        # model = create_shared_inception_network_2_extra_input(kwargs_inc={'dropout': 0.1,
+        #                                                                   'activity_regularizer': regularizers.l2(0.01)})
+        # print 'end model'
+        # model = ks.models.load_model('/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/test/models/weights-000.hdf5')
+        # model.load_weights('/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/test/models/weights-023.hdf5', by_name=False)
+
+        # model = create_shared_inception_network_2_extra_input()
+        # model = create_shared_inception_network_2_extra_input(kwargs_inc={'activity_regularizer': regularizers.l2(0.001)})
+        # model = create_shared_inception_network_2_extra_input(kwargs_inc={'dropout': 0.1})
+        # model = create_shared_inception_network_2_extra_input(kwargs_inc={'trainable': False})
+        # model.load_weights(args.folderMODEL + "models/weights-" + args.num_weights + ".hdf5", by_name=True)
+        # model.load_weights("/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181207-1837/models/weights-010.hdf5", by_name=True)
+        # model.load_weights("/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181210-1129/models/weights-050.hdf5", by_name=True)
+
+
         model.summary()
         try: # plot model, install missing packages with conda install if it throws a module error
             ks.utils.plot_model(model, to_file=args.folderOUT + '/plot_model.png',
                                 show_shapes=True, show_layer_names=False)
         except OSError:
             save_plot_model_script(folderOUT=args.folderOUT)
-            print 'could not produce plot_model.png ---- run generate_model_plot on CPU'
+            print '\n\ncould not produce plot_model.png ---- run generate_model_plot on CPU'
+
+        # for layer in model.layers:
+        #     # print layer.name, layer.trainable
+        #     if not layer.name in ['31', '32', '33', '21', '22', 'Flatten_Pos', 'Output_Pos', 'Output', 'Aux_Input']:
+        #         layer.trainable = False
+        #     if layer.trainable == True:
+        #         print layer.name, layer.trainable
 
         # exit()
 
@@ -96,11 +119,11 @@ def executeCNN(args, files, var_targets, nn_arch, batchsize, epoch, mode, n_gpu=
         # model, batchsize = parallelize_model_to_n_gpus(model, n_gpu, batchsize)  # TODO compile after restart????
         # if n_gpu[0] > 1: model.compile(loss=loss_opt[0], optimizer=optimizer, metrics=[loss_opt[1]])  # TODO check
 
-        if epoch[0] == 0:
+        if epoch[0] == 0: # or True:
             print 'Compiling Keras model\n'
             model.compile(
                 loss='categorical_crossentropy',
-                # loss_weights=[1., 0.7, 0.1],
+                # loss_weights=[1., 0.0, 0.2],
                 optimizer=optimizer,
                 metrics=['accuracy'])
             # TODO Add Precision/Recall to metric, see:
@@ -126,14 +149,7 @@ def executeCNN(args, files, var_targets, nn_arch, batchsize, epoch, mode, n_gpu=
         EVENT_INFO = get_events(args=args, files=files, model=model,
                           fOUT=(args.folderOUT + "events_" + str(args.num_weights) + "_" + args.sources + "-" + mode + "-" + args.position + "-" + args.wires + ".hdf5"))
 
-        # EVENT_INFO['DNNPredClass'] = EVENT_INFO['DNNPred'].argmax(axis=-1)
-        # EVENT_INFO['DNNTrueClass'] = EVENT_INFO['DNNTrue'].argmax(axis=-1)
-        # EVENT_INFO['DNNPredTrueClass'] = EVENT_INFO['DNNPred'][:, 1]
-        if mode in 'mc':
-            validation_mc_plots(args=args, folderOUT=args.folderOUT, data=EVENT_INFO)
-        if mode in 'data':
-            # TODO need data specific plots?
-            validation_mc_plots(args=args, folderOUT=args.folderOUT, data=EVENT_INFO)
+        validation_mc_plots(args=args, folderOUT=args.folderOUT, data=EVENT_INFO)
     else:
         raise ValueError('chosen mode (%s) not available. Choose between train/mc/data'%(mode))
 
@@ -218,7 +234,7 @@ def load_trained_model(args):
         print "================================================================================================\n"
         try:
             model = ks.models.load_model(args.folderMODEL + "models/model-000.hdf5")
-            model.load_weights(args.folderMODEL + "models/weights-" + nb_weights + ".hdf5")
+            model.load_weights(args.folderMODEL + "models/weights-" + nb_weights + ".hdf5", by_name=False)
         except:
             model = ks.models.load_model(args.folderMODEL + "models/model-" + nb_weights + ".hdf5")
         if args.folderMODEL != args.folderOUT:
@@ -232,10 +248,21 @@ def load_trained_model(args):
         raise Exception("\t\tMODEL NOT FOUND!\n")
     return model
 
+def calculate_class_weights(files, gen_kwargs):
+    class_weights = {}
+    n_samples = 0
+    for id in [0,1]:
+        gen_kwargs['select_dict']['ID'] = [id]
+        num_id = getNumEventsFromGen(generate_batches_from_files(files, yield_mc_info=-1, **gen_kwargs))
+        n_samples += num_id
+        class_weights[id] = 1./float(num_id)
+    class_weights.update({key: n_samples*class_weights[key]/float(len(class_weights.keys())) for key in class_weights.keys()})
+    return class_weights
+
 def LRschedule_stepdecay(epoch):
-    initial_lrate = 0.001 #0.01 # 0.001
+    initial_lrate = 0.01 #0.001 #0.01 # 0.001
     step_drop = 0.5
-    step_epoch = 5.0
+    step_epoch = 5. #5.0
     step_decay_weight = 0.9
     step_decay = np.power(step_drop, np.floor((1. + epoch) / step_epoch))
     sqrt_decay = 1./np.sqrt(1. + epoch)

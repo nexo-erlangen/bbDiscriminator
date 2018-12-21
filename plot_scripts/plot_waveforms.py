@@ -17,19 +17,22 @@ TimeOffset = 1000
 mode = 'sum'
 
 def main():
-    # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_Uni_MC_P2/'
+    # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_AllVessel_MC_P2/'
     # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_reduced_MC_P2/'
     # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/Th228_WFs_S5_Data_P2-old/'
     # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/Th228_WFs_S5_Data_P2/'
-    folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/Th228_WFs_S5_MC_P2/'
+    # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/Th228_WFs_S5_MC_P2/'
+    folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/Co60_WFs_S5_Data_P2/'
+    # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/LB_WFs_AllVessel_Data_P2/'
     folderOUT = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Waveforms/'
     files = [os.path.join(folderIN, f) for f in os.listdir(folderIN) if os.path.isfile(os.path.join(folderIN, f)) and '.hdf5' in f]
-    number = 72000
+    number = 156000
     generator = gen.generate_batches_from_files(files, 1, wires='U', class_type=None, f_size=None, yield_mc_info=1)
-    wf_sum = None
+    wf_sum = [None]*3 
     for idx in xrange(number):
         wf, _, eventInfo = generator.next()
         wf = np.asarray(wf)
+        eventInfo['ID'] = int(eventInfo['ID'])
         # if eventInfo['LXeEnergy'] < 2800 or ( abs(eventInfo['MCPosZ']) > 15 and abs(eventInfo['MCPosZ']) < 175 ): continue
         # if eventInfo['LXeEnergy'] < 2800 or abs(eventInfo['MCPosZ']) < 175: continue
         if eventInfo['ID'] == 0: particleID = 'Photon'
@@ -44,14 +47,16 @@ def main():
             else: ValueError('strange waveform shape: %s'%(wf.shape))
         elif mode == 'sum':
             if idx%1000==0: print idx
-            if wf_sum is None:
-                print 'initializing wfs'
-                wf_sum = wf
+            if wf_sum[eventInfo['ID']] is None:
+                print 'initializing wfs:', eventInfo['ID']
+                wf_sum[eventInfo['ID']] = wf
             else:
-                wf_sum += wf
+                wf_sum[eventInfo['ID']] += wf
             # print wf.shape
     if mode == 'sum':
-        plot_waveforms_heat(np.asarray(wf_sum), folderOUT + 'heat.png')
+        for i in range(len(wf_sum)):
+            if wf_sum[i] is None: continue
+            plot_waveforms_heat(np.asarray(wf_sum[i]), folderOUT + 'heat-Co60-Data-S5-%s.png'%(str(i)))
     return
 
 def plot_waveforms_UV(wf, idx, partID, energy, folderOUT):

@@ -102,21 +102,39 @@ print 'starting'
 # write_dict_to_hdf5_file(data['1'], folderRUNS + 'combined.hdf5')
 
 data = read_hdf5_file_to_dict(folderRUNS + 'combined.hdf5')
+data_baseline = read_hdf5_file_to_dict("/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/180906-1938/0validation/Th232U238bb0n-mc-AllVesselAllVesselUni-023-U/events_023_Th232U238bb0n-mc-AllVesselAllVesselUni-U.hdf5")
 
 maskBDT = True
-# for bdt_var in filter(lambda x: 'BDT' in x, data.keys()):
-#     maskBDT = maskBDT & (data[bdt_var] != -2.0)
+for bdt_var in filter(lambda x: 'BDT' in x, data.keys()):
+    maskBDT = maskBDT & (data[bdt_var] != -2.0)
 
 # maskSS = maskBDT & (data['CCIsSS'] == 1) & (data['DNNPredTrueClassReduced'] != -2.0) & (data['DNNPredTrueClassReduced'] >= 0.02)
-maskSS = maskBDT & (data['numCC'] == 1) & (data['DNNPredTrueClassReduced'] != -2.0)  & (data['DNNPredTrueClassReduced'] >= 0.02)
+maskSS = maskBDT & (data['CCIsSS'] == 1) & (data['DNNPredTrueClassReduced'] != -2.0)  & (data['DNNPredTrueClassReduced'] >= 0.02)
 maskMS = np.invert(maskSS)
 
-# maskROI = (np.sum(data['CCPurityCorrectedEnergy'], axis=1) > 2400.) & \
-#           (np.sum(data['CCPurityCorrectedEnergy'], axis=1) < 2800.)
-maskROI = True
+maskROI = (np.sum(data['CCPurityCorrectedEnergy'], axis=1) > 2400.) & \
+          (np.sum(data['CCPurityCorrectedEnergy'], axis=1) < 2800.)
+#maskROI = True
 
 maskBKG = (data['DNNTrueClass'] == 0)
 maskSIG = (data['DNNTrueClass'] == 1)
+
+# ================000
+
+maskBDT_bl = True
+for bdt_var in filter(lambda x: 'BDT' in x, data_baseline.keys()):
+    maskBDT_bl = maskBDT_bl & (data_baseline[bdt_var] != -2.0)
+
+# maskSS = maskBDT & (data['CCIsSS'] == 1) & (data['DNNPredTrueClassReduced'] != -2.0) & (data['DNNPredTrueClassReduced'] >= 0.02)
+maskSS_bl = maskBDT_bl & (data_baseline['CCIsSS'] == 1)
+maskMS_bl = np.invert(maskSS_bl)
+
+maskROI_bl = (np.sum(data_baseline['CCPurityCorrectedEnergy'], axis=1) > 2400.) & \
+          (np.sum(data_baseline['CCPurityCorrectedEnergy'], axis=1) < 2800.)
+#maskROI_bl = True
+
+maskBKG_bl = (data_baseline['DNNTrueClass'] == 0)
+maskSIG_bl = (data_baseline['DNNTrueClass'] == 1)
 
 plot_histogram_vs_threshold(fOUT=folderRUNS + 'histogram_SS_vs_threshold-SIG.pdf',
                                 data=[data['DNNPredTrueClass'][maskSIG & maskROI & maskSS],
@@ -141,15 +159,13 @@ plot_histogram_vs_threshold(fOUT=folderRUNS + 'histogram_SS_vs_threshold-Reduced
 plot_ROC_curve(fOUT=folderRUNS + 'roc_curve.pdf',
                dataTrue=[data['DNNTrueClass'][maskROI & maskSS],
                          data['DNNTrueClass'][maskROI & maskSS],
-                         data['DNNTrueClass'][maskROI & maskSS],
-                         data['DNNTrueClass'][maskROI & maskSS],
-                         data['DNNTrueClass'][maskROI & maskSS]],
-               dataPred=[data['DNNPredTrueClass'][maskROI & maskSS],
-                         data['DNNPredTrueClassReduced'][maskROI & maskSS],
-                         data['BDT-SS-Std'][maskROI & maskSS],
+                         data_baseline['DNNTrueClass'][maskROI_bl & maskSS_bl],
+                         data_baseline['DNNTrueClass'][maskROI_bl & maskSS_bl]],
+               dataPred=[data['DNNPredTrueClassReduced'][maskROI & maskSS],
                          data['BDT-SS-Uni'][maskROI & maskSS],
-                         data['BDT-DNN'][maskROI & maskSS],],
-               label=['Raw', 'Reduced', 'BDT-Std', 'BDT-Uni', 'DNN+Stand'])
+                         data_baseline['DNNPredTrueClass'][maskROI_bl & maskSS_bl],
+                         data_baseline['BDT-DNN'][maskROI_bl & maskSS_bl],],
+               label=['Reduced DNN', 'BDT (noStand)', 'Raw DNN', 'Raw DNN+Stand'])
 
 plot_scatter_hist2d(data['DNNPredTrueClass'][maskROI & maskSIG & maskSS],
                     data['DNNPredTrueClassReduced'][maskROI & maskSIG & maskSS],

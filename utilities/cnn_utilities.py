@@ -76,25 +76,31 @@ class BatchLevelPerformanceLogger(ks.callbacks.Callback):
         self.genVal = genVal
 
     def on_train_begin(self, logs={}):
-        if self.args.resume:
-            os.system("cp %s %s" % (self.args.folderMODEL + 'log_train.txt', self.logfile_train_fname))
+        self.logfile_train = open(self.logfile_train_fname, 'a+')
+        if os.stat(self.logfile_train_fname).st_size == 0:
+            self.logfile_train.write("#Batch\tBatch_float\tLoss\tAcc\tValLoss\tValAcc")
+        self.logfile_train.close()
         return
 
     def on_batch_end(self, batch, logs={}):
         self.seen += 1
-        # self.averageLoss += logs.get('Output_loss')
-        # self.averageAcc += logs.get('Output_acc')
-        self.averageLoss += logs.get('loss')
-        self.averageAcc += logs.get('acc')
+        try:
+            self.averageLoss += logs.get('Output_loss')
+            self.averageAcc += logs.get('Output_acc')
+        except:
+            self.averageLoss += logs.get('loss')
+            self.averageAcc += logs.get('acc')
 
         if self.seen % self.skipBatchesVal == 0:
             self.Valseen += 1
-            # print self.model.metrics_names
             val = self.model.evaluate_generator(self.genVal, steps=1)
-            # self.averageValLoss += val[self.model.metrics_names.index('Output_loss')]
-            # self.averageValAcc += val[self.model.metrics_names.index('Output_acc')]
-            self.averageValLoss += val[self.model.metrics_names.index('loss')]
-            self.averageValAcc += val[self.model.metrics_names.index('acc')]
+            try:
+                self.averageValLoss += val[self.model.metrics_names.index('Output_loss')]
+                self.averageValAcc += val[self.model.metrics_names.index('Output_acc')]
+            except:
+                self.averageValLoss += val[self.model.metrics_names.index('loss')]
+                self.averageValAcc += val[self.model.metrics_names.index('acc')]
+
 
         if self.seen % self.steps == 0:
             averaged_loss = self.averageLoss / self.steps
@@ -119,8 +125,6 @@ class BatchLevelPerformanceLogger(ks.callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs={}):
         self.logfile_train = open(self.logfile_train_fname, 'a+')
-        if os.stat(self.logfile_train_fname).st_size == 0: self.logfile_train.write("#Batch\tBatch_float\tLoss\tAcc\tValLoss\tValAcc")
-
         for batch_statistics in self.loglist: # only write finished epochs to the .txt
             self.logfile_train.write(batch_statistics)
 
@@ -128,8 +132,19 @@ class BatchLevelPerformanceLogger(ks.callbacks.Callback):
         os.fsync(self.logfile_train.fileno())
         self.logfile_train.close()
         try:
-            plot_validation.plot_learning_curve(self.args.folderOUT, np.loadtxt(self.logfile_train_fname, unpack=True))
-        except: print 'plotting learning curve not successfull. Skipping'
+            data = []
+            path = '.'
+            while True:
+                file = os.path.join(os.path.join(os.path.split(self.logfile_train_fname)[0], path),
+                                    os.path.split(self.logfile_train_fname)[1])
+                if os.path.isfile(file):
+                    data.append(np.loadtxt(file, unpack=True))
+                else:
+                    break
+                path += '.'
+            plot_validation.plot_learning_curve(self.args.folderOUT, data)
+        except:
+            print 'plotting learning curve not successfull. Skipping'
 
 
 class EpochLevelPerformanceLogger(ks.callbacks.Callback):
