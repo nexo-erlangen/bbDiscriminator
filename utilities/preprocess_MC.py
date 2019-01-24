@@ -25,13 +25,13 @@ print
 files = [f for f in listdir(args.folderIN) if isfile(join(args.folderIN, f)) and '.hdf5' in f]
 
 start, length = 0, 350 #1000, 350
-slice = 4000
+slice = 1000
 batchsize = 1
 fletcher32 = True
 shuffle = False
 compression = ('gzip', 4)
 
-counter = 18 #0
+counter = 0
 for index, filename in enumerate(files):
 	print "reading:\t", filename, 
 											

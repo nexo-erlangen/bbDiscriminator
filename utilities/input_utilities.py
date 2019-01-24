@@ -52,7 +52,7 @@ def parseInput():
     parser.add_argument('-l', '--log', type=str, dest='log', default='', nargs='*', help='Specify settings used for training to distinguish between runs')
     parser.add_argument('-sd', '--selection', type=lambda kv: kv.split("=", 1), dest='select_dict', default={}, nargs='*', help='Specify event selection for generator. E.g. CCIsSS=1')
     parser.add_argument('--tb', dest='tb_logger', action='store_true', help='activate tensorboard logger')
-    parser.add_argument('-ev', '--events', dest='events', default=2000, type=int, help='number of validation events')
+    parser.add_argument('-ev', '--events', dest='events', default=0, type=int, help='number of validation events')
     parser.add_argument('--phase', dest='phase', default='2', choices=['1', '2'], help='EXO Phase (1/2)')
     parser.add_argument('--resume', dest='resume', action='store_true', help='Resume Training')
     parser.add_argument('--test', dest='test', action='store_true', help='Only reduced data')
@@ -104,8 +104,6 @@ def parseInput():
 
     if args.resume == True or args.mode != 'train':
         if type(args.num_weights) == int: args.num_weights = str(args.num_weights).zfill(3)
-    else:
-        args.num_weights = 0
     if not os.path.exists(args.folderOUT+'models'): os.makedirs(args.folderOUT+'models')
 
     if args.mode == 'data':

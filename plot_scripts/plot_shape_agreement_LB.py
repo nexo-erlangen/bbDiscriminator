@@ -39,8 +39,8 @@ names['LXe_Xe135'] = 'Xe135'
 names['AirGap_214_Bi'] = 'AG-Bi214'
 
 discriminator = 'signal-likeness'
-mult = 'MS'
-# mult = 'SS'
+# mult = 'MS'
+mult = 'SS'
 
 folderDB = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Plots/'
 filesDB = [ os.path.join(folderDB, f) for f in os.listdir(folderDB) if os.path.isfile(os.path.join(folderDB, f)) and 'LB_weights' in f and mult in f ]
@@ -335,7 +335,7 @@ def make_shape_agreement_plot_combined(data, mc, weights, title, name, xlabel, l
 
     plt.clf()
     f = plt.figure()
-    gs = gridspec.GridSpec(2, 1, height_ratios=[3, 1])
+    gs = gridspec.GridSpec(2, 1, height_ratios=[3, 2])
     ax1 = plt.subplot(gs[0])
     ax2 = plt.subplot(gs[1], sharex = ax1)
     for i in range(len(mc)):
@@ -354,12 +354,12 @@ def make_shape_agreement_plot_combined(data, mc, weights, title, name, xlabel, l
     ax1.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
            ncol=4, mode="expand", borderaxespad=0.)
     if log: ax1.set_yscale("log")
+    else: ax1.set_ylim(bottom=0)
     ax1.set_xlim(kwargs['range'])
-    ax1.set_ylim(bottom=0)
-    ax2.set_ylim(-0.7, 0.7)
+    ax2.set_ylim(-0.5, 0.5)
     plt.setp(ax1.get_xticklabels(), visible=False)
     yticks = ax2.yaxis.get_major_ticks()
-    yticks[-1].label1.set_visible(False)
+    # yticks[-1].label1.set_visible(False)
     plt.subplots_adjust(hspace=.0)
     f.savefig(folderRUNS + xlabel + '_' + name + '.pdf', bbox_inches='tight')
     plt.close()

@@ -104,10 +104,8 @@ def crop_image(fileIN, fileOUT, start, length, mc_or_data, mode):
         temp = np.asarray(fIN.get(key))
         if mode=='Federico':
             if key in ['LXeEnergy', 'ID', 'APDEnergy', 'QValue']: continue
-            if key in ['MCEventNumber']:
-                key = 'EventNumber'
-            elif key in ['MCRunNumber']:
-                key = 'RunNumber'
+            if key in ['MCEventNumber']: key = 'EventNumber'
+            elif key in ['MCRunNumber']: key = 'RunNumber'
         fOUT.create_dataset(key, data=temp, dtype=np.float32)
 
     if mode=='Federico':

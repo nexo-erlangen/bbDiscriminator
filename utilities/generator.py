@@ -66,10 +66,6 @@ def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f
                 eventInfo[key] = np.asarray(f[key])
             ys = encode_targets(eventInfo, f_size, class_type)
 
-
-            print eventInfo.keys()
-            exit()
-
             lst = select_events(eventInfo, select_dict=select_dict, shuffle=True)
             # lst = np.arange(0, f_size, batchsize)
             # random.shuffle(lst)
@@ -77,6 +73,7 @@ def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f
             if not yield_mc_info in [-1,2]:
                 xs = np.asarray(f['wfs'])[:, wireindex]
                 # print xs.shape
+                # exit()
 
                 #TODO these 2 lines for baseline U-only 2x(Bx350x38x1)
                 xs = np.swapaxes(xs, 0, 1)
@@ -121,12 +118,12 @@ def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f
                 # elif yield_mc_info == 1: yield (xs_i_aux, ys_i) + ({key: eventInfo[key][batch] for key in eventInfo.keys()},)
                 # if yield_mc_info == 0: yield ([xs_i, xs_i_aux], ys_i)
                 # elif yield_mc_info == 1: yield ([xs_i, xs_i_aux], ys_i) + ({key: eventInfo[key][batch] for key in eventInfo.keys()},)
-                # if yield_mc_info == 0: yield ([xs_i[0], xs_i[1], xs_i_aux], [ys_i, ys_i, ys_i])
-                # elif yield_mc_info == 1: yield ([xs_i[0], xs_i[1], xs_i_aux], [ys_i, ys_i, ys_i]) + ({key: eventInfo[key][batch] for key in eventInfo.keys()},)
+                if yield_mc_info == 0: yield ([xs_i[0], xs_i[1], xs_i_aux], [ys_i, ys_i])
+                elif yield_mc_info == 1: yield ([xs_i[0], xs_i[1], xs_i_aux], [ys_i, ys_i]) + ({key: eventInfo[key][batch] for key in eventInfo.keys()},)
                 # if yield_mc_info == 0: yield (xs_i, ys_i)
                 # elif yield_mc_info == 1: yield (xs_i, ys_i) + ({key: eventInfo[key][batch] for key in eventInfo.keys()},)
-                if   yield_mc_info == 0:    yield (list(xs_i), ys_i)
-                elif yield_mc_info == 1:    yield (list(xs_i), ys_i) + ({ key: eventInfo[key][batch] for key in eventInfo.keys() },)
+                # if   yield_mc_info == 0:    yield (list(xs_i), ys_i)
+                # elif yield_mc_info == 1:    yield (list(xs_i), ys_i) + ({ key: eventInfo[key][batch] for key in eventInfo.keys() },)
                 elif yield_mc_info == 2:    yield { key: eventInfo[key][batch] for key in eventInfo.keys() }
                 elif yield_mc_info == -1:   yield len(batch)
                 else:   raise ValueError("Wrong argument for yield_mc_info (-1/0/1/2)")
@@ -149,7 +146,7 @@ def encode_targets(y_dict, batchsize, class_type=None):
         from keras.utils import to_categorical
         train_y = np.zeros((batchsize, 1), dtype='float32')
         train_y[:, 0] = y_dict['ID']  # event ID (0: gamma, 1: bb)
-        ys = to_categorical(ys, 2)  # convert to one-hot vectors
+        train_y = to_categorical(train_y, 2)  # convert to one-hot vectors
     elif class_type == 'energy':
         train_y = np.zeros((batchsize, 1), dtype='float32')
         train_y[:, 0] = y_dict['MCEnergy']
@@ -254,8 +251,8 @@ def predict_events(model, generator):
     X, Y_TRUE, EVENT_INFO = generator.next()
     EVENT_INFO['DNNPred'] = np.asarray(model.predict(X, 50))
     EVENT_INFO['DNNTrue'] = np.asarray(Y_TRUE)
-    if len(EVENT_INFO['DNNTrue'].shape) == 3: EVENT_INFO['DNNTrue'] = np.swapaxes(EVENT_INFO['DNNTrue'], 0, 1)
-    if len(EVENT_INFO['DNNPred'].shape) == 3: EVENT_INFO['DNNPred'] = np.swapaxes(EVENT_INFO['DNNPred'], 0, 1)
+    if len(EVENT_INFO['DNNTrue'].shape) > 1: EVENT_INFO['DNNTrue'] = np.swapaxes(EVENT_INFO['DNNTrue'], 0, 1)
+    if len(EVENT_INFO['DNNPred'].shape) > 1: EVENT_INFO['DNNPred'] = np.swapaxes(EVENT_INFO['DNNPred'], 0, 1)
     return EVENT_INFO
 
 def get_events(args, files, model, fOUT):
@@ -274,9 +271,11 @@ def get_events(args, files, model, fOUT):
             raise ValueError('file ending should be .p/.hdf5 but is %s'%(file_ending))
         if args.events > EVENT_INFO.values()[0].shape[0]: raise IOError
     except IOError:
-        events_per_batch = 50
+        events_per_batch = 1000
         if model == None:
             raise SystemError('model not found and not events file found')
+        if args.events == 0:
+            args.events = getNumEvents(files)
         if args.events % events_per_batch != 0:
             raise ValueError('choose event number in multiples of %f events'%(events_per_batch))
 

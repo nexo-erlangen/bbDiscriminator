@@ -13,6 +13,33 @@ from utilities.generator import *
 
 ##################################################################################################
 
+import argparse
+
+parser = argparse.ArgumentParser(description='....', formatter_class=argparse.RawTextHelpFormatter)
+parser.add_argument('-m', '--model', dest='folderMODEL', type=str, help='folderMODEL Path')
+parser.add_argument('-w', '--weights', dest='num_weights', type=int, help='Load weights from Epoch')
+parser.add_argument('-s', '--source', dest='source', type=str,
+                    choices=['mixed', 'LB', 'bb0n', 'bb0nE', 'bb2n', 'gamma', 'Th228', 'Th232', 'U238', 'Xe135',
+                             'Xe137', 'Bi214', 'Co60', 'Ra226', 'K40'], help='sources for training/validation')
+parser.add_argument('-p', '--position', dest='position', type=str,
+                    choices=['Uni', 'S2', 'S5', 'S8', 'S11', 'AllVessel', 'AllVessel-lowE', 'InnerCryo', 'AirGap',
+                             'reduced'], help='source position')
+args, unknown = parser.parse_known_args()
+
+source, position, weights = args.source, args.position, str(args.num_weights).zfill(3)
+
+folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/%s/0validation/ShapeAgreement-%s-%s/'%(args.folderMODEL, source, position)
+if not os.path.isdir(folderRUNS):
+    os.makedirs(folderRUNS)
+files = {}
+files['1'] = (folderRUNS + '../%s-mc-%s-%s-U/events_%s_%s-mc-%s-U.hdf5')%(source, position, weights, weights, source, position)
+files['2'] = (folderRUNS + '../%s-data-%s-%s-U/events_%s_%s-data-%s-U.hdf5')%(source, position, weights, weights, source, position)
+
+for key in files.keys():
+    print files[key]
+    if not os.path.isfile(files[key]):
+        raise OSError('file not found: %s'%files[key])
+
 # folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181022-1358/181023-1728/0validation/ShapeAgreement-067/'
 # files = {}
 # files['1'] = '../Th228-mc-S5-067-U/events_067_Th228-mc-S5-U.hdf5'
@@ -34,56 +61,109 @@ from utilities.generator import *
 # files['2'] = '../mixed-mc-Uni-023-U/events_023_mixed-mc-Uni-U.hdf5'
 
 # TODO Baseline U+V DNN
-#folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181029-1015/0validation/ShapeAgreement-Th228/'
-#files = {}
-#files['1'] = '../Th228-mc-S5-020-UV/events_020_Th228-mc-S5-UV.hdf5'
-#files['2'] = '../Th228-data-S5-020-UV/events_020_Th228-data-S5-UV.hdf5'
+# folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181029-1015/0validation/ShapeAgreement-Th228/'
+# files = {}
+# files['1'] = '../Th228-mc-S5-020-UV/events_020_Th228-mc-S5-UV.hdf5'
+# files['2'] = '../Th228-data-S5-020-UV/events_020_Th228-data-S5-UV.hdf5'
+# source, position = 'Th228', 'S5'
 
-folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/180906-1938/0validation/ShapeAgreement-Th228-S5/'
-files = {}
-files['1'] = '../Th228-mc-S5-023-U/events_023_Th228-mc-S5-U.hdf5'
-files['2'] = '../Th228-data-S5-023-U/events_023_Th228-data-S5-U.hdf5'
+# TODO Baseline U DNN
+# folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/180906-1938/0validation/ShapeAgreement-Th228-old/'
+# files = {}
+# files['1'] = '../Th228-mc-S5-023-U/events_023_Th228-mc-S5-U.hdf5'
+# files['2'] = '../Th228-data-S5-023-U-old/events_023_Th228-data-S5-U.hdf5'
+# source, position = 'Th228', 'S5'
+
+# folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/180906-1938/0validation/ShapeAgreement-Th228-S5/'
+# files = {}
+# files['1'] = '../Th228-mc-S5-023-U/events_023_Th228-mc-S5-U.hdf5'
+# files['2'] = '../Th228-data-S5-023-U/events_023_Th228-data-S5-U.hdf5'
+# source, position = 'Th228', 'S5'
 
 # folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/180906-1938/0validation/ShapeAgreement-Th228-S2/'
 # files = {}
 # files['1'] = '../Th228-mc-S2-023-U/events_023_Th228-mc-S2-U.hdf5'
 # files['2'] = '../Th228-data-S2-023-U/events_023_Th228-data-S2-U.hdf5'
-#
+# source, position = 'Th228', 'S2'
+
 # folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/180906-1938/0validation/ShapeAgreement-Th228-S8/'
 # files = {}
 # files['1'] = '../Th228-mc-S8-023-U/events_023_Th228-mc-S8-U.hdf5'
 # files['2'] = '../Th228-data-S8-023-U/events_023_Th228-data-S8-U.hdf5'
-#
+# source, position = 'Th228', 'S8'
+
 # folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/180906-1938/0validation/ShapeAgreement-Th228-S11/'
 # files = {}
 # files['1'] = '../Th228-mc-S11-023-U/events_023_Th228-mc-S11-U.hdf5'
 # files['2'] = '../Th228-data-S11-023-U/events_023_Th228-data-S11-U.hdf5'
-#
+# source, position = 'Th228', 'S11'
+
 # folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/180906-1938/0validation/ShapeAgreement-Ra226-S5/'
 # files = {}
 # files['1'] = '../Ra226-mc-S5-023-U/events_023_Ra226-mc-S5-U.hdf5'
 # files['2'] = '../Ra226-data-S5-023-U/events_023_Ra226-data-S5-U.hdf5'
-#
+# source, position = 'Ra226', 'S5'
+
 # folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/180906-1938/0validation/ShapeAgreement-Co60-S5/'
 # files = {}
 # files['1'] = '../Co60-mc-S5-023-U/events_023_Co60-mc-S5-U.hdf5'
 # files['2'] = '../Co60-data-S5-023-U/events_023_Co60-data-S5-U.hdf5'
+# source, position = 'Co60', 'S5'
 
 # folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181030-1854/0validation/NERSC-bb0n/'
 # files = {}
 # files['1'] = '../bb0n-mc-reduced-045-small/events_045_bb0n-mc-reduced-small.hdf5'
 # files['2'] = 'NERSC-file.hdf5'
 
-folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181030-1854/0validation/NERSC-Th232/'
-files = {}
-files['1'] = '../Th232-mc-reduced-045-small/events_045_Th232-mc-reduced-small.hdf5'
-files['2'] = 'NERSC-file.hdf5'
+# folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181030-1854/0validation/NERSC-Th232/'
+# files = {}
+# files['1'] = '../Th232-mc-reduced-045-small/events_045_Th232-mc-reduced-small.hdf5'
+# files['2'] = 'NERSC-file.hdf5'
 
+# TODO Baseline U DNN (AllVessel BKG)
+# folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181022-1717/181023-1907/181024-1842/0validation/ShapeAgreement-Th228-S5/'
+# files = {}
+# files['1'] = '../Th228-mc-S5-025-U/events_025_Th228-mc-S5-U.hdf5'
+# files['2'] = '../Th228-data-S5-025-U/events_025_Th228-data-S5-U.hdf5'
+# source, position = 'Th228', 'S5'
+
+# folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181022-1717/181023-1907/181024-1842/0validation/ShapeAgreement-Th228-S8/'
+# files = {}
+# files['1'] = '../Th228-mc-S8-025-U/events_025_Th228-mc-S8-U.hdf5'
+# files['2'] = '../Th228-data-S8-025-U/events_025_Th228-data-S8-U.hdf5'
+# source, position = 'Th228', 'S8'
+
+# folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181022-1717/181023-1907/181024-1842/0validation/ShapeAgreement-Th228-S11/'
+# files = {}
+# files['1'] = '../Th228-mc-S11-025-U/events_025_Th228-mc-S11-U.hdf5'
+# files['2'] = '../Th228-data-S11-025-U/events_025_Th228-data-S11-U.hdf5'
+# source, position = 'Th228', 'S11'
+
+# folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181022-1717/181023-1907/181024-1842/0validation/ShapeAgreement-Th228-S2/'
+# files = {}
+# files['1'] = '../Th228-mc-S2-025-U/events_025_Th228-mc-S2-U.hdf5'
+# files['2'] = '../Th228-data-S2-025-U/events_025_Th228-data-S2-U.hdf5'
+# source, position = 'Th228', 'S2'
+
+# folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181022-1717/181023-1907/181024-1842/0validation/ShapeAgreement-Ra226-S5/'
+# files = {}
+# files['1'] = '../Ra226-mc-S5-025-U/events_025_Ra226-mc-S5-U.hdf5'
+# files['2'] = '../Ra226-data-S5-025-U/events_025_Ra226-data-S5-U.hdf5'
+# source, position = 'Ra226', 'S5'
+
+# folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181022-1717/181023-1907/181024-1842/0validation/ShapeAgreement-Co60-S5/'
+# files = {}
+# files['1'] = '../Co60-mc-S5-025-U/events_025_Co60-mc-S5-U.hdf5'
+# files['2'] = '../Co60-data-S5-025-U/events_025_Co60-data-S5-U.hdf5'
+# source, position = 'Co60', 'S5'
 
 discriminator = 'signal-likeness'
 
 def main():
     print 'starting'
+    name_1 = 'MC'
+    name_2 = 'Data'
+
     data = {}
     # for f in [os.path.join(files['2'], f) for f in os.listdir(files['2']) if os.path.isfile(os.path.join(files['2'], f))]:
     #     temp = read_hdf5_file_to_dict(f)
@@ -96,10 +176,15 @@ def main():
     # exit()
 
     for key, model in files.items():
-        data[key] = read_hdf5_file_to_dict(folderRUNS + files[key])
+        data[key] = read_hdf5_file_to_dict(files[key])
         # data[key] = pickle.load(open(folderRUNS + files[key], "rb"))
         # files[key] = os.path.splitext(files[key])[0] + '.hdf5'
         # write_dict_to_hdf5_file(data=data[key], file=(folderRUNS + files[key]))
+
+    if data['1']['DNNPredTrueClass'].shape[1] > 1:
+        plots_multiOutput(data)
+        return
+
 
     mask1 = (data['1']['CCIsSS'] == 1) & (data['1']['DNNTrueClass'] == 0)
     mask2 = (data['2']['CCIsSS'] == 1) & (data['2']['DNNTrueClass'] == 0)
@@ -107,26 +192,19 @@ def main():
     rad1 = np.sqrt(data['1']['CCPosX'][:, 0] * data['1']['CCPosX'][:, 0] + data['1']['CCPosY'][:, 0] * data['1']['CCPosY'][:, 0])
     rad2 = np.sqrt(data['2']['CCPosX'][:, 0] * data['2']['CCPosX'][:, 0] + data['2']['CCPosY'][:, 0] * data['2']['CCPosY'][:, 0])
 
-    name_1 = 'MC'
-    name_2 = 'Data'
-    # name_1 = 'bb2n'
-    # name_2 = 'bb0nE'
-    # name_1 = 'Xe137'
-    # name_2 = 'bb0nE'
-
     print data['1'].keys()
     print data['1']['APDTime']
     print data['2']['APDTime']
     print data['1']['CCCollectionTime'][:,0]
     print data['2']['CCCollectionTime'][:,0]
 
-    plot_hist2_multi(np.sum(data['1']['CCPurityCorrectedEnergy'], axis=1)[mask1], data['1']['APDTime'][mask1],
-                     np.sum(data['2']['CCPurityCorrectedEnergy'], axis=1)[mask2], data['2']['APDTime'][mask2],
-                     [1000, 3000], [900, 1050], 'Energy', 'APD Time', name_1, name_2, 'Energy_vs_APD-Time_SS.pdf')
-
-    plot_hist2_multi(np.sum(data['1']['CCPurityCorrectedEnergy'], axis=1)[mask1], data['1']['CCCollectionTime'][:,0][mask1],
-                     np.sum(data['2']['CCPurityCorrectedEnergy'], axis=1)[mask2], data['2']['CCCollectionTime'][:,0][mask2],
-                     [1000, 3000], [1000, 1150], 'Energy', 'CC Time', name_1, name_2, 'Energy_vs_CC-Time_SS.pdf')
+    # plot_hist2_multi(np.sum(data['1']['CCPurityCorrectedEnergy'], axis=1)[mask1], data['1']['APDTime'][mask1],
+    #                  np.sum(data['2']['CCPurityCorrectedEnergy'], axis=1)[mask2], data['2']['APDTime'][mask2],
+    #                  [1000, 3000], [900, 1050], 'Energy', 'APD Time', name_1, name_2, 'Energy_vs_APD-Time_SS.pdf')
+    #
+    # plot_hist2_multi(np.sum(data['1']['CCPurityCorrectedEnergy'], axis=1)[mask1], data['1']['CCCollectionTime'][:,0][mask1],
+    #                  np.sum(data['2']['CCPurityCorrectedEnergy'], axis=1)[mask2], data['2']['CCCollectionTime'][:,0][mask2],
+    #                  [1000, 3000], [1000, 1150], 'Energy', 'CC Time', name_1, name_2, 'Energy_vs_CC-Time_SS.pdf')
 
     kwargs = {
         'range': (0, 1),
@@ -311,11 +389,11 @@ def main():
 
         kwargs = {
             'range': (0, 1),
-            'bins': 10,
+            'bins': 50,
             'density': False
         }
 
-        e_limit = 1300. #2000.
+        e_limit = 2000. #2000.
         maskE1 = np.sum(data['1']['CCPurityCorrectedEnergy'], axis=1) > e_limit
         maskE2 = np.sum(data['2']['CCPurityCorrectedEnergy'], axis=1) > e_limit
         make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & maskE1] , data['2']['DNNPredTrueClass'][mask_2y & mask2 & maskE2] , title, '%s (E gr %d)' % (discriminator, e_limit), **kwargs)
@@ -356,6 +434,38 @@ def main():
         # make_shape_agreement_plot(data['1'], data['2'], rad1, rad2, 'radius', **kwargs)
 
 
+def plots_multiOutput(data):
+    mask_1y = data['1']['DNNTrueClass'][:, 0] == 0
+    mask_2y = data['2']['DNNTrueClass'] == 0
+
+    kwargs = {
+        'range': (0, 1),
+        'bins': 50,
+        'density': False
+    }
+
+    for i in xrange(3):
+        if i == 0:
+            continue
+            mask1 = mask2 = True
+            title = 'SS+MS'
+        elif i == 1:
+            mask1 = (data['1']['CCIsSS'] == 1)
+            mask2 = (data['2']['CCIsSS'] == 1)
+            title = 'SS'
+        elif i == 2:
+            mask1 = (data['1']['CCIsSS'] == 0)
+            mask2 = (data['2']['CCIsSS'] == 0)
+            title = 'MS'
+        else:
+            raise ValueError('check loop')
+
+        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][:, 0][mask_1y & mask1],
+                                  data['2']['DNNPredTrueClass'][:, 0][mask_2y & mask2],
+                                  title, discriminator+'-Final', **kwargs)
+        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][:, 1][mask_1y & mask1],
+                                  data['2']['DNNPredTrueClass'][:, 1][mask_2y & mask2],
+                                  title, discriminator+'-Top', **kwargs)
 
 
 def make_shape_agreement_plot(mc, data, title, name, **kwargs):
@@ -375,15 +485,15 @@ def make_shape_agreement_plot(mc, data, title, name, **kwargs):
 
     plt.clf()
     f = plt.figure()
-    gs = gridspec.GridSpec(2, 1, height_ratios=[3, 1])
+    gs = gridspec.GridSpec(2, 1, height_ratios=[3, 2])
     ax1 = plt.subplot(gs[0])
     ax2 = plt.subplot(gs[1], sharex = ax1)
     ax1.step(bin_centres, hist_1y, where='mid', color='blue', label='MC (%s)'%(title))
-    ax1.errorbar(bin_centres, hist_2y, hist_2y_err, color='k', fmt='.', label='Th228 (S5)')
+    ax1.errorbar(bin_centres, hist_2y, hist_2y_err, color='k', fmt='.', label='%s (%s)'%(source, position))
     ax2.axhline(y=0., c='k')
     # ax2.axhline(y=+0.25, c='k', alpha=0.5)
     # ax2.axhline(y=-0.25, c='k', alpha=0.5)
-    ax2.errorbar(bin_centres, (hist_2y-hist_1y)/hist_1y, hist_2y_err/hist_1y, color='k', fmt='.', label='Th228 (S5)')
+    ax2.errorbar(bin_centres, (hist_2y-hist_1y)/hist_1y, hist_2y_err/hist_1y, color='k', fmt='.', label='%s (%s)'%(source, position))
     # ax2.scatter(bin_centres, (hist_2y-hist_1y)/hist_2y_err, color='k')
     ax2.set_xlabel(name)
     ax2.set_ylabel('(data-MC)/MC')

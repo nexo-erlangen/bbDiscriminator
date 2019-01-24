@@ -102,10 +102,6 @@ if __name__ == "__main__":
     # exit()
 
 
-
-
-
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--frozen_model_filename", default="results/frozen_model.pb", type=str,
                         help="Frozen model file to import")
@@ -148,15 +144,19 @@ if __name__ == "__main__":
         # for j in range(len(y_out1)):
         #     print y_out1[j, 1], y_out2[j, 1]
 
-    model = ks.models.load_model('../keras_to_tensorflow/energy.h5')
+    run = '181022-1717/181023-1907/181024-1842'
+    epoch = '025'
+    model_path = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/%s/models/'%(run)
+    model = ks.models.load_model(model_path+'model-000.hdf5')
+    model.load_weights(model_path+'weights-%s.hdf5'%(epoch))
     print model
     y_out2 = model.predict_on_batch(wfs)
 
     for i in range(len(y_out1)):
         try:
-            print y_out1[i,1], '\t', y_out2[i,1], '\t', 100.*(y_out1[i,1]/y_out2[i,1]-1.0)
+            print y_out1[i,1], '\t', y_out2[i,1], '\t', 100.*(y_out1[i,1]-y_out2[i,1]), '%'
         except:
-            print y_out1[i], '\t', y_out2[i], '\t', 100. * (y_out1[i] / y_out2[i] - 1.0)
+            print y_out1[i], '\t', y_out2[i], '\t', 100. * (y_out1[i]-y_out2[i]), '%'
 
     # print('Starting Session, setting the GPU memory usage to %f' % args.gpu_memory)
     # gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=args.gpu_memory)

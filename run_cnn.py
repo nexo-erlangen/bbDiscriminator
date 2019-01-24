@@ -50,8 +50,6 @@ def executeCNN(args, files, var_targets, nn_arch, batchsize, epoch, mode, n_gpu=
         'class_type': var_targets,
         'select_dict': args.select_dict
     }
-    generate_batches_from_files(files['train'], yield_mc_info=0, **gen_kwargs)
-    exit()
 
     print '\nEpoch Interval:\t', epoch[0], ' - ', epoch[1], '\n'
 
@@ -80,21 +78,29 @@ def executeCNN(args, files, var_targets, nn_arch, batchsize, epoch, mode, n_gpu=
         model = load_trained_model(args)
 
     if mode == 'train':
-        # print 'start model'
-        # model = create_shared_inception_network_2_extra_input(kwargs_inc={'dropout': 0.1,
-        #                                                                   'activity_regularizer': regularizers.l2(0.01)})
-        # print 'end model'
+        print 'start model'
+
+        # model = create_shared_inception_network_2_extra_input(kwargs_inc={'dropout': 0.1, 'activity_regularizer': regularizers.l2(0.01)})
+
         # model = ks.models.load_model('/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/test/models/weights-000.hdf5')
         # model.load_weights('/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/test/models/weights-023.hdf5', by_name=False)
 
-        # model = create_shared_inception_network_2_extra_input()
+        model = create_shared_inception_network_2_extra_input()
         # model = create_shared_inception_network_2_extra_input(kwargs_inc={'activity_regularizer': regularizers.l2(0.001)})
         # model = create_shared_inception_network_2_extra_input(kwargs_inc={'dropout': 0.1})
         # model = create_shared_inception_network_2_extra_input(kwargs_inc={'trainable': False})
-        # model.load_weights(args.folderMODEL + "models/weights-" + args.num_weights + ".hdf5", by_name=True)
+        model.load_weights(args.folderMODEL + "models/weights-" + str(args.num_weights).zfill(3) + ".hdf5", by_name=True)
         # model.load_weights("/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181207-1837/models/weights-010.hdf5", by_name=True)
         # model.load_weights("/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181210-1129/models/weights-050.hdf5", by_name=True)
 
+        for layer in model.layers:
+            # print layer.name, layer.trainable
+            if not layer.name in ['31', '32', '33', '21', '22', 'Flatten_Pos', 'Output', 'Aux_Input']:
+                layer.trainable = False
+            if layer.trainable == True:
+                print layer.name, layer.trainable
+
+        print 'end model'
 
         model.summary()
         try: # plot model, install missing packages with conda install if it throws a module error
@@ -104,26 +110,17 @@ def executeCNN(args, files, var_targets, nn_arch, batchsize, epoch, mode, n_gpu=
             save_plot_model_script(folderOUT=args.folderOUT)
             print '\n\ncould not produce plot_model.png ---- run generate_model_plot on CPU'
 
-        # for layer in model.layers:
-        #     # print layer.name, layer.trainable
-        #     if not layer.name in ['31', '32', '33', '21', '22', 'Flatten_Pos', 'Output_Pos', 'Output', 'Aux_Input']:
-        #         layer.trainable = False
-        #     if layer.trainable == True:
-        #         print layer.name, layer.trainable
-
-        # exit()
-
         adam = ks.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0)  # Default: epsi: None, Deep NN: epsi=0.1/1.0
         optimizer = adam  # Choose optimizer, only used if epoch == 0
 
         # model, batchsize = parallelize_model_to_n_gpus(model, n_gpu, batchsize)  # TODO compile after restart????
         # if n_gpu[0] > 1: model.compile(loss=loss_opt[0], optimizer=optimizer, metrics=[loss_opt[1]])  # TODO check
 
-        if epoch[0] == 0: # or True:
+        if epoch[0] == 0 or True: #TODO or True only for manual adding layers to freezed network
             print 'Compiling Keras model\n'
             model.compile(
                 loss='categorical_crossentropy',
-                # loss_weights=[1., 0.0, 0.2],
+                loss_weights=[1., 0.0],
                 optimizer=optimizer,
                 metrics=['accuracy'])
             # TODO Add Precision/Recall to metric, see:
@@ -147,7 +144,7 @@ def executeCNN(args, files, var_targets, nn_arch, batchsize, epoch, mode, n_gpu=
         os.system("mkdir -p -m 770 %s " % (args.folderOUT))
 
         EVENT_INFO = get_events(args=args, files=files, model=model,
-                          fOUT=(args.folderOUT + "events_" + str(args.num_weights) + "_" + args.sources + "-" + mode + "-" + args.position + "-" + args.wires + ".hdf5"))
+                          fOUT=(args.folderOUT + "events_" + str(args.num_weights).zfill(3) + "_" + args.sources + "-" + mode + "-" + args.position + "-" + args.wires + ".hdf5"))
 
         validation_mc_plots(args=args, folderOUT=args.folderOUT, data=EVENT_INFO)
     else:
@@ -227,7 +224,7 @@ def fit_model(args, model, files, batchsize, var_targets, epoch, shuffle, n_even
     return model
 
 def load_trained_model(args):
-    nb_weights = args.num_weights
+    nb_weights = str(args.num_weights).zfill(3) #args.num_weights
     print "===================================== load Model ==============================================="
     try:
         print "%smodels/(model/weights)-%s.hdf5" % (args.folderMODEL, nb_weights)
