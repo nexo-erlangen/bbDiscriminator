@@ -18,7 +18,7 @@ def validation_mc_plots(args, folderOUT, data):
     print data['DNNPredTrueClass'].shape
     print data['DNNTrueClass'].shape
 
-    if data['DNNPredTrueClass'].shape[1] > 1:
+    if len(data['DNNPredTrueClass'].shape) > 1:
         validation_mc_plots_multiOutput(args, folderOUT, data)
         return
 
@@ -33,19 +33,15 @@ def validation_mc_plots(args, folderOUT, data):
     # maskSS = maskBDT & (data['numCC'] == 1) # & (data['DNNPredTrueClass'] >= 0.02)
     maskMS = np.invert(maskSS)
 
-    maskROI = (np.sum(data['CCPurityCorrectedEnergy'], axis=1) > 2400.) & \
-              (np.sum(data['CCPurityCorrectedEnergy'], axis=1) < 2800.)
-    # maskROI = (np.sum(data['CCCorrectedEnergy'], axis=1) > 2400.) & \
-    #           (np.sum(data['CCCorrectedEnergy'], axis=1) < 2800.)
+    # maskROI = (np.sum(data['CCPurityCorrectedEnergy'], axis=1) > 2400.) & \
+    #           (np.sum(data['CCPurityCorrectedEnergy'], axis=1) < 2800.)
+    maskROI = (np.sum(data['CCCorrectedEnergy'], axis=1) > 2400.) & \
+              (np.sum(data['CCCorrectedEnergy'], axis=1) < 2800.)
     # maskROI = (np.sum(data['CCCorrectedEnergy'], axis=1) > 2000.)
     # maskROI = True
 
-    if data['DNNTrueClass'].shape[1] > 1:
-        maskBKG = (data['DNNTrueClass'][:,0] == 0)
-        maskSIG = (data['DNNTrueClass'][:,0] == 1)
-    else:
-        maskBKG = (data['DNNTrueClass'] == 0)
-        maskSIG = (data['DNNTrueClass'] == 1)
+    maskBKG = (data['DNNTrueClass'] == 0)
+    maskSIG = (data['DNNTrueClass'] == 1)
 
     #TODO below reduced plots
     # plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_vs_threshold-ROI.pdf',
@@ -99,26 +95,9 @@ def validation_mc_plots(args, folderOUT, data):
     #                            data['CCStandoff'][maskROI & maskMS & maskSIG]],
     #                      label=['U238+Th232', 'bb0n'], xlabel='standoff distance [mm]')
 
-    plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve_ALL-ROI.pdf',
-                   dataTrue=data['DNNTrueClass'][maskROI & maskSS][:, 0],
-                   dataPred=[data['DNNPredTrueClass'][maskROI & maskSS][:, 0],
-                             data['DNNPredTrueClass'][maskROI & maskSS][:, 1],
-                             data['BDT-SS-Uni'][maskROI & maskSS],
-                             data['BDT-SS-Std'][maskROI & maskSS],
-                             data['CCStandoff'][maskROI & maskSS],
-                             -1.0 * np.sqrt(data['MCEventSizeR']**2+data['MCEventSizeZ']**2)[maskROI & maskSS]],
-                   label=['DNN', 'DNN-Top', 'BDT-Uni', 'BDT-Std', 'Standoff', 'MC 3D Size'])
-    #
-    plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve_DNN+BDT-ROI.pdf',
-                   dataTrue=data['DNNTrueClass'][:,0][maskROI & maskSS],
-                   dataPred=[data['DNNPredTrueClass'][:,0][maskROI & maskSS],
-                             data['DNNPredTrueClass'][:,1][maskROI & maskSS],
-                             data['BDT-SS-Std'][maskROI & maskSS],
-                             data['BDT-DNN'][maskROI & maskSS]],
-                   label=['DNN', 'DNN-Top', 'BDT-Std', 'DNN+Stand'])
-
     #TODO baseline below
-    plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve_ALL-ROI.pdf',
+    try:
+        plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve_ALL-ROI.pdf',
                    dataTrue=data['DNNTrueClass'][maskROI & maskSS],
                    dataPred=[data['DNNPredTrueClass'][maskROI & maskSS],
                              data['BDT-SS-Uni'][maskROI & maskSS],
@@ -126,13 +105,22 @@ def validation_mc_plots(args, folderOUT, data):
                              data['CCStandoff'][maskROI & maskSS],
                              -1.0 * np.sqrt(data['MCEventSizeR']**2+data['MCEventSizeZ']**2)[maskROI & maskSS]],
                    label=['DNN', 'BDT-Uni', 'BDT-Std', 'Standoff', 'MC 3D Size'])
+    except:
+        pass
 
-    plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve_DNN+BDT-ROI.pdf',
+    try:
+        plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve_ROI.pdf',
                    dataTrue=data['DNNTrueClass'][maskROI & maskSS],
                    dataPred=[data['DNNPredTrueClass'][maskROI & maskSS],
-                             data['BDT-SS-Std'][maskROI & maskSS],
-                             data['BDT-DNN'][maskROI & maskSS]],
-                   label=['DNN', 'BDT-Std', 'DNN+Stand'])
+                             data['BDT-SS-Std'][maskROI & maskSS]],
+                   label=['DNN', 'BDT'])
+        # plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve_DNN+BDT-ROI.pdf',
+        #            dataTrue=data['DNNTrueClass'][maskROI & maskSS],
+        #            dataPred=[data['DNNPredTrueClass'][maskROI & maskSS],
+        #                      data['BDT-SS-Std'][maskROI & maskSS],
+        #                      data['BDT-DNN'][maskROI & maskSS]],
+        #            label=['DNN', 'BDT-Std', 'DNN+Stand'])
+    except: pass
 
     # plot_prec_vs_recall_curve(fOUT=args.folderOUT + 'precision_vs_recall_ROI.pdf',
     #                           dataTrue=data['DNNTrueClass'][maskROI & maskSS],
@@ -157,20 +145,20 @@ def validation_mc_plots(args, folderOUT, data):
     # TODO BELOW IS TEST
 
     # threshold values for 90% signal efficiency
-    bdt_ss_std = get_thresh_at_sig_eff_or_at_bkg_rej(data['DNNTrueClass'][maskROI & maskSS],
-                                                     data['BDT-SS-Std'][maskROI & maskSS],
-                                                     cut_value=0.9, mode='sig_eff')
-    bdt_ss_uni = get_thresh_at_sig_eff_or_at_bkg_rej(data['DNNTrueClass'][maskROI & maskSS],
-                                                     data['BDT-SS-Uni'][maskROI & maskSS],
-                                                     cut_value=0.9, mode='sig_eff')
+    # bdt_ss_std = get_thresh_at_sig_eff_or_at_bkg_rej(data['DNNTrueClass'][maskROI & maskSS],
+    #                                                  data['BDT-SS-Std'][maskROI & maskSS],
+    #                                                  cut_value=0.9, mode='sig_eff')
+    # bdt_ss_uni = get_thresh_at_sig_eff_or_at_bkg_rej(data['DNNTrueClass'][maskROI & maskSS],
+    #                                                  data['BDT-SS-Uni'][maskROI & maskSS],
+    #                                                  cut_value=0.9, mode='sig_eff')
 
     #TODO baseline below
     dnn_ss_uni = get_thresh_at_sig_eff_or_at_bkg_rej(data['DNNTrueClass'][maskROI & maskSS],
                                                      data['DNNPredTrueClass'][maskROI & maskSS],
                                                      cut_value=0.9, mode='sig_eff')
-    dnn_ss_stand = get_thresh_at_sig_eff_or_at_bkg_rej(data['DNNTrueClass'][maskROI & maskSS],
-                                                     data['BDT-DNN'][maskROI & maskSS],
-                                                     cut_value=0.9, mode='sig_eff')
+    # dnn_ss_stand = get_thresh_at_sig_eff_or_at_bkg_rej(data['DNNTrueClass'][maskROI & maskSS],
+    #                                                  data['BDT-DNN'][maskROI & maskSS],
+    #                                                  cut_value=0.9, mode='sig_eff')
 
     # dnn_ss_uni = get_thresh_at_sig_eff_or_at_bkg_rej(data['DNNTrueClass'][:, 0][maskROI & maskSS],
     #                                                  data['DNNPredTrueClass'][:, 0][maskROI & maskSS],
@@ -194,17 +182,17 @@ def validation_mc_plots(args, folderOUT, data):
     #
 
     #TODO baseline below
-    plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventSize_DNN_3D-90Sig.pdf',
-                             data=np.sqrt(data['MCEventSizeR']**2+data['MCEventSizeZ']**2)[maskROI & maskSS],
-                             discr_mask=data['DNNPredTrueClass'][maskROI & maskSS],
-                             sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=dnn_ss_uni,
-                             discr_range=[0, 20], discr_label='DNN', data_label='True Event Size [mm]')
-
-    plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventSize_DNN_Stand_3D-90Sig.pdf',
-                             data=np.sqrt(data['MCEventSizeR'] ** 2 + data['MCEventSizeZ'] ** 2)[maskROI & maskSS],
-                             discr_mask=data['BDT-DNN'][maskROI & maskSS],
-                             sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=dnn_ss_stand,
-                             discr_range=[0, 20], discr_label='DNN+Stand', data_label='True Event Size [mm]')
+    # plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventSize_DNN_3D-90Sig.pdf',
+    #                          data=np.sqrt(data['MCEventSizeR']**2+data['MCEventSizeZ']**2)[maskROI & maskSS],
+    #                          discr_mask=data['DNNPredTrueClass'][maskROI & maskSS],
+    #                          sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=dnn_ss_uni,
+    #                          discr_range=[0, 20], discr_label='DNN', data_label='True Event Size [mm]')
+    #
+    # plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventSize_DNN_Stand_3D-90Sig.pdf',
+    #                          data=np.sqrt(data['MCEventSizeR'] ** 2 + data['MCEventSizeZ'] ** 2)[maskROI & maskSS],
+    #                          discr_mask=data['BDT-DNN'][maskROI & maskSS],
+    #                          sig_or_bkg=maskSIG[maskROI & maskSS], discr_thresh=dnn_ss_stand,
+    #                          discr_range=[0, 20], discr_label='DNN+Stand', data_label='True Event Size [mm]')
 
     # plot_Mikes_plot_idea_new(fOUT=args.folderOUT + 'EventPosition_BDT_Std_R-90Sig.pdf',
     #                          data=np.sqrt(data['MCPosX'] ** 2 + data['MCPosY'] ** 2)[maskROI & maskSS],
@@ -354,51 +342,6 @@ def validation_mc_plots(args, folderOUT, data):
     #                        range_x=[0,20], bins_y=e_bins, name_x='True Event Size [mm]', name_y='CC E [keV]',
     #                        label=['Background', 'Signal'])
 
-
-    plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_SS_BKG_vs_threshold.pdf',
-                                data=[data['DNNPredTrueClass'][:,0][maskBKG & maskSS],
-                                      data['DNNPredTrueClass'][:,1][maskBKG & maskSS],
-                                      data['DNNPredTrueClass'][:,2][maskBKG & maskSS]],
-                                label=['DNN', 'DNN Top', 'DNN Pos'])
-
-    plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_SS_SIG_vs_threshold.pdf',
-                                data=[data['DNNPredTrueClass'][:,0][maskSIG & maskSS],
-                                      data['DNNPredTrueClass'][:,1][maskSIG & maskSS],
-                                      data['DNNPredTrueClass'][:,2][maskSIG & maskSS]],
-                                label=['DNN', 'DNN Top', 'DNN Pos'])
-
-    plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_MS_BKG_vs_threshold.pdf',
-                                data=[data['DNNPredTrueClass'][:,0][maskBKG & maskMS],
-                                      data['DNNPredTrueClass'][:,1][maskBKG & maskMS],
-                                      data['DNNPredTrueClass'][:,2][maskBKG & maskMS]],
-                                label=['DNN', 'DNN Top', 'DNN Pos'])
-
-    plot_histogram_vs_threshold(fOUT=args.folderOUT + 'histogram_MS_SIG_vs_threshold.pdf',
-                                data=[data['DNNPredTrueClass'][:,0][maskSIG & maskMS],
-                                      data['DNNPredTrueClass'][:,1][maskSIG & maskMS],
-                                      data['DNNPredTrueClass'][:,2][maskSIG & maskMS]],
-                                label=['DNN', 'DNN Top', 'DNN Pos'])
-
-    plot_ROC_curve(fOUT=args.folderOUT + 'roc_curve_DNN-ROI.pdf',
-                   dataTrue=[data['DNNTrueClass'][maskROI & maskSS][:,0],
-                             data['DNNTrueClass'][maskROI & maskSS][:,0],
-                             data['DNNTrueClass'][maskROI & maskSS][:,0],
-                             data['DNNTrueClass'][maskROI & maskMS][:,0],
-                             data['DNNTrueClass'][maskROI & maskMS][:,0],
-                             data['DNNTrueClass'][maskROI & maskMS][:,0],
-                             data['DNNTrueClass'][maskROI][:,0],
-                             data['DNNTrueClass'][maskROI][:,0],
-                             data['DNNTrueClass'][maskROI][:,0]],
-                   dataPred=[data['DNNPredTrueClass'][:,0][maskROI & maskSS],
-                             data['DNNPredTrueClass'][:,1][maskROI & maskSS],
-                             data['DNNPredTrueClass'][:,2][maskROI & maskSS],
-                             data['DNNPredTrueClass'][:,0][maskROI & maskMS],
-                             data['DNNPredTrueClass'][:,1][maskROI & maskMS],
-                             data['DNNPredTrueClass'][:,2][maskROI & maskMS],
-                             data['DNNPredTrueClass'][:,0][maskROI],
-                             data['DNNPredTrueClass'][:,1][maskROI],
-                             data['DNNPredTrueClass'][:,2][maskROI]],
-                   label=['DNN SS', 'DNN SS Top', 'DNN SS Pos', 'DNN MS', 'DNN MS Top', 'DNN MS Pos', 'DNN SS+MS', 'DNN SS+MS Top', 'DNN SS+MS Pos'])
 
     # exit()
 
@@ -1169,6 +1112,36 @@ def plot_learning_curve(folderOUT, data):
     plt.xlabel('Training time [epoch]')
     plt.ylabel('Accuracy [%]')
     plt.savefig(folderOUT + 'accuracy.pdf', bbox_inches='tight')
+    plt.clf()
+    plt.close()
+
+# ----------------------------------------------------------
+# Final Plots HISTORY.CSV
+# ----------------------------------------------------------
+def plot_history_csv(folderOUT, data):
+    plt.clf()
+    plt.plot(data[0], data[4], label='Validation')
+    plt.plot(data[0], data[2], label='Training')
+    plt.xlabel('Training time [epoch]')
+    plt.ylabel('Loss')
+    plt.grid(True, which='both')
+    plt.xlim(xmin=0)
+    # plt.gca().set_yscale('log')
+    plt.legend(loc="best")
+    plt.savefig(folderOUT + 'history-loss.pdf', bbox_inches='tight')
+    plt.clf()
+    plt.close()
+
+    plt.axhline(y=50, color='k')
+    plt.plot(data[0], 100. * data[3], label='Validation')
+    plt.plot(data[0], 100. * data[1], label='Training')
+    plt.grid(True)
+    plt.ylim(ymin=45.0, ymax=100.0)
+    plt.xlim(xmin=0)
+    plt.legend(loc="best")
+    plt.xlabel('Training time [epoch]')
+    plt.ylabel('Accuracy [%]')
+    plt.savefig(folderOUT + 'history-accuracy.pdf', bbox_inches='tight')
     plt.clf()
     plt.close()
 

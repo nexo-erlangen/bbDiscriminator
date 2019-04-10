@@ -32,7 +32,10 @@ def save_model_with_weights(input_model_weights, input_model_temp):
     if not os.path.isfile(input_model_weights):
         raise FileNotFoundError('Model file `{}` does not exist.'.format(input_model_weights))
     try:
-        model = keras.models.load_model(os.path.join(os.path.dirname(input_model_weights), 'model-000.hdf5'))
+        try:
+            model = keras.models.load_model(os.path.join(os.path.dirname(input_model_weights), 'model-000.hdf5'))
+        except:
+            model = keras.models.load_model(os.path.join(os.path.dirname(input_model_weights), 'model-initial.hdf5'))
         model.load_weights(input_model_weights, by_name=False)
         model.save(input_model_temp)
     except:

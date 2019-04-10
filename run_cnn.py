@@ -13,12 +13,12 @@ from plot_scripts.plot_traininghistory import *
 from plot_scripts.plot_validation import *
 
 def main(args):
-    # frac_train = {'mixedUniMC': 0.90}
-    # frac_val   = {'mixedUniMC': 0.10}
-    frac_train = {'mixedAllVesselMC': 0.90}
-    frac_val = {'mixedAllVesselMC': 0.10}
-    # frac_train = {'mixedreducedMC': 0.90}
-    # frac_val = {'mixedreducedMC': 0.10}
+    if len(args.endings.keys()) == 1 and args.mode == 'train':
+        frac_train = {args.endings.keys()[0]: 0.90}
+        frac_val   = {args.endings.keys()[0]: 0.10}
+    else:
+        frac_train = {'': 0.0}
+        frac_val   = {'': 0.0}
 
     splitted_files = splitFiles(args, mode=args.mode, frac_train=frac_train, frac_val=frac_val)
 
@@ -65,42 +65,36 @@ def executeCNN(args, files, var_targets, nn_arch, batchsize, epoch, mode, n_gpu=
         elif nn_arch == 'Inception':
             if args.wires in ['U', 'V', 'small']:
                 # model = create_shared_inception_network_2_extra_input()
-                model = create_shared_inception_network_2() #create_shared_inception_network_2_extra_input() # TODO model = create_shared_inception_network_2()
+                model = create_shared_inception_network_2() # TODO model = create_shared_inception_network_2()
+                # model = create_shared_inceptionV4_network_2()
             elif args.wires in ['UV', 'U+V']:
                 model = create_shared_inception_network_2() # TODO model = create_shared_inception_network_4()
             else: raise ValueError('passed wire specifier need to be U/V/U+V/UV/small')
-        elif nn_arch == 'Conv_LSTM':
-            raise ValueError('Currently, this is not implemented')
         else:
             raise ValueError('Currently, only DCNN and Inception are available as nn_arch')
     else:
-        # pass
         model = load_trained_model(args)
 
     if mode == 'train':
-        print 'start model'
+        # print 'start model'
 
         # model = create_shared_inception_network_2_extra_input(kwargs_inc={'dropout': 0.1, 'activity_regularizer': regularizers.l2(0.01)})
 
         # model = ks.models.load_model('/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/test/models/weights-000.hdf5')
         # model.load_weights('/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/test/models/weights-023.hdf5', by_name=False)
 
-        model = create_shared_inception_network_2_extra_input()
-        # model = create_shared_inception_network_2_extra_input(kwargs_inc={'activity_regularizer': regularizers.l2(0.001)})
-        # model = create_shared_inception_network_2_extra_input(kwargs_inc={'dropout': 0.1})
-        # model = create_shared_inception_network_2_extra_input(kwargs_inc={'trainable': False})
-        model.load_weights(args.folderMODEL + "models/weights-" + str(args.num_weights).zfill(3) + ".hdf5", by_name=True)
-        # model.load_weights("/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181207-1837/models/weights-010.hdf5", by_name=True)
-        # model.load_weights("/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/181210-1129/models/weights-050.hdf5", by_name=True)
-
-        for layer in model.layers:
-            # print layer.name, layer.trainable
-            if not layer.name in ['31', '32', '33', '21', '22', 'Flatten_Pos', 'Output', 'Aux_Input']:
-                layer.trainable = False
-            if layer.trainable == True:
-                print layer.name, layer.trainable
-
-        print 'end model'
+        # model = create_shared_inception_network_2_extra_input()
+        # # model = create_shared_inception_network_2_extra_input(kwargs_inc={'dropout': 0.1})
+        # model.load_weights(args.folderMODEL + "models/weights-" + str(args.num_weights).zfill(3) + ".hdf5", by_name=True)
+        #
+        # for layer in model.layers:
+        #     # print layer.name, layer.trainable
+        #     if not layer.name in ['31', '32', '33', '21', '22', 'Flatten_Pos', 'Output', 'Aux_Input']:
+        #         layer.trainable = False
+        #     if layer.trainable == True:
+        #         print layer.name, layer.trainable
+        #
+        # print 'end model'
 
         model.summary()
         try: # plot model, install missing packages with conda install if it throws a module error
@@ -116,11 +110,11 @@ def executeCNN(args, files, var_targets, nn_arch, batchsize, epoch, mode, n_gpu=
         # model, batchsize = parallelize_model_to_n_gpus(model, n_gpu, batchsize)  # TODO compile after restart????
         # if n_gpu[0] > 1: model.compile(loss=loss_opt[0], optimizer=optimizer, metrics=[loss_opt[1]])  # TODO check
 
-        if epoch[0] == 0 or True: #TODO or True only for manual adding layers to freezed network
+        if epoch[0] == 0: # or True: #TODO or True only for manual adding layers to freezed network
             print 'Compiling Keras model\n'
             model.compile(
                 loss='categorical_crossentropy',
-                loss_weights=[1., 0.0],
+                # loss_weights=[1., 0.0],
                 optimizer=optimizer,
                 metrics=['accuracy'])
             # TODO Add Precision/Recall to metric, see:
@@ -186,7 +180,7 @@ def fit_model(args, model, files, batchsize, var_targets, epoch, shuffle, n_even
     modellogger = ks.callbacks.ModelCheckpoint(args.folderOUT + 'models/weights-{epoch:03d}.hdf5', save_weights_only=True, period=1)
     lrscheduler = ks.callbacks.LearningRateScheduler(LRschedule_stepdecay, verbose=1)
     epochlogger = EpochLevelPerformanceLogger(args=args, files=files['val'], var_targets=var_targets)
-    batchlogger = BatchLevelPerformanceLogger(display=5, skipBatchesVal=40, steps_per_epoch=train_steps_per_epoch, args=args, #15, 20
+    batchlogger = BatchLevelPerformanceLogger(display=10, skipBatchesVal=10, steps_per_epoch=train_steps_per_epoch, args=args, #15, 20
                                               genVal=generate_batches_from_files(files['val'], yield_mc_info=0, **gen_kwargs)) #batchsize//2
     callbacks.append(csvlogger)
     callbacks.append(modellogger)
@@ -257,13 +251,22 @@ def calculate_class_weights(files, gen_kwargs):
     return class_weights
 
 def LRschedule_stepdecay(epoch):
-    initial_lrate = 0.01 #0.001 #0.01 # 0.001
-    step_drop = 0.5
-    step_epoch = 5. #5.0
-    step_decay_weight = 0.9
-    step_decay = np.power(step_drop, np.floor((1. + epoch) / step_epoch))
-    sqrt_decay = 1./np.sqrt(1. + epoch)
-    return initial_lrate * ((step_decay_weight * step_decay) + ((1.0 - step_decay_weight) * sqrt_decay))
+    # initial_lrate = 0.01
+    # step_drop = 0.5
+    # # step_epoch = 3.0 #for Phase 1
+    # step_epoch = 5.0 #for Phase 2
+    # step_decay_weight = 0.9
+    # step_decay = np.power(step_drop, np.floor((1. + epoch) / step_epoch))
+    # sqrt_decay = 1./np.sqrt(1. + epoch)
+    # return initial_lrate * ((step_decay_weight * step_decay) + ((1.0 - step_decay_weight) * sqrt_decay))
+
+    #TODO Below Baseline 180906-1938
+    initial_lrate = 0.001
+    drop = 0.5
+    epochs_drop = 5.0
+    epoch -= 15 #fix for resuming from baseline Phase 2 DNN after Epoch 23
+    lrate = initial_lrate * np.power(drop, np.floor((1 + epoch) / epochs_drop))
+    return lrate
 
 def save_plot_model_script(folderOUT):
     """

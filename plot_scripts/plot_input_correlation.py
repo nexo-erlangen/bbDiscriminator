@@ -10,21 +10,20 @@ from sys import path
 path.append('/home/hpc/capm/sn0515/bbDiscriminator/')
 import utilities.generator as gen
 
+EXOPHASE = 2
+position = 'S5'
+DataOrMC = 'MC'
+source = 'Th228'
+
 def main():
-    # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/bb0n_WFs_Uni_MC_P2/'
-    # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/Th232_WFs_AllVessel_MC_P2/'
-    # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/U238_WFs_AllVessel_MC_P2/'
-    # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/gamma_WFs_AllVessel_MC_P2/'
-    folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_Uni_MC_P1/'
-    # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_Uni_MC_P2/'
-    # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_AllVessel_MC_P2/'
-    # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/Th228_WFs_S11_MC_P2/'
-    # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/Xe137_WFs_Uni_MC_P2/'
+    folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/%s_WFs_%s_%s_P%s/'%(source, position, DataOrMC, str(EXOPHASE))
     folderOUT = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Plots/'
 
     files = [os.path.join(folderIN, f) for f in os.listdir(folderIN) if os.path.isfile(os.path.join(folderIN, f))]
 
-    EventInfo = gen.read_EventInfo_from_files(files) #, 5000)
+    print 'start loading'
+    EventInfo = gen.read_EventInfo_from_files(files) #, 25000)
+    print 'end loading'
 
     # mask = (EventInfo['MCEnergy'] > 2300.) & (EventInfo['MCEnergy'] < 2600.)
     mask = (EventInfo['MCEnergy'] >= 700.) & (EventInfo['MCEnergy'] <= 3000.)
@@ -41,30 +40,22 @@ def main():
     print 'bb0n:\t\t', ys[:, (EventInfo['ID'] == 1) & mask].shape[1]
     print 'electron:\t', ys[:, (EventInfo['ID'] == 2) & mask].shape[1]
 
-    # plot_input_correlations_heat(ys[:, (EventInfo['ID'] == 0) & mask], folderOUT + 'Correlation_matrix_U238_AllVessel-heat.png')
-    # plot_input_correlations_heat(ys[:, (EventInfo['ID'] == 0) & mask], folderOUT + 'Correlation_matrix_Th232_AllVessel-heat.png')
-    # plot_input_correlations_heat(ys[:, (EventInfo['ID'] == 1) & mask], folderOUT + 'Correlation_matrix_bb0n-heat.png')
-    # plot_input_correlations_heat(ys[:, (EventInfo['ID'] == 0) & mask], folderOUT + 'Correlation_matrix_gamma_AllVessel-heat.png')
-    # plot_input_correlations_heat(ys[:, (EventInfo['ID'] == 1) & mask], folderOUT + 'Correlation_matrix_bb0nE_forAllVessel-heat.png')
-    plot_input_correlations_heat(ys[:, (EventInfo['ID'] == 0) & mask], folderOUT + 'Correlation_matrix_gamma-P1-Uni-heat.png')
-    plot_input_correlations_heat(ys[:, (EventInfo['ID'] == 1) & mask], folderOUT + 'Correlation_matrix_bb0nE-P1_Uni-heat.png')
-    # plot_input_correlations_heat(ys[:, (EventInfo['ID'] == 0) & mask], folderOUT + 'Correlation_matrix_Xe137_Uni_MC-heat.png')
-
-    # plot_input_correlations(ys[:, (EventInfo['ID'] == 0) & mask], folderOUT + 'Correlation_matrix_gamma.png')
-    # plot_input_correlations(ys[:, (EventInfo['ID'] == 1) & mask], folderOUT + 'Correlation_matrix_bb0nE.png')
-    # plot_input_correlations(ys[:, (EventInfo['ID'] == 0) & mask], folderOUT + 'Correlation_matrix_U238_AllVessel.png')
-    # plot_input_correlations(ys[:, (EventInfo['ID'] == 0) & mask], folderOUT + 'Correlation_matrix_Th232_AllVessel.png')
-    # plot_input_correlations(ys[:, (EventInfo['ID'] == 0) & mask], folderOUT + 'Correlation_matrix_gamma_AllVessel.png')
-    # plot_input_correlations_heat(ys[:, (EventInfo['ID'] == 0) & mask], folderOUT + 'Correlation_matrix_gamma_AllVessel-heat.png')
-    # plot_input_correlations(ys[:, (EventInfo['ID'] == 1) & mask], folderOUT + 'Correlation_matrix_bb0n.png')
-    # plot_input_correlations(ys[:, EventInfo['ID'] == 2], folderOUT + 'Correlation_matrix_U238.png')
+    if source != 'mixed':
+        plot_input_correlations_heat(ys[:, mask], folderOUT + 'Correlation_matrix_%s-P%s-%s-%s-heat.png'%(source, str(EXOPHASE), position, DataOrMC))
+    else:
+        plot_input_correlations_heat(ys[:, (EventInfo['ID'] == 0) & mask],
+                                     folderOUT + 'Correlation_matrix_%s-P%s-%s-%s-heat.png' % (
+                                     source + '-gamma', str(EXOPHASE), position, DataOrMC))
+        plot_input_correlations_heat(ys[:, (EventInfo['ID'] == 1) & mask],
+                                     folderOUT + 'Correlation_matrix_%s-P%s-%s-%s-heat.png' % (
+                                         source + '-bb0nE', str(EXOPHASE), position, DataOrMC))
 
     return
 
 def plot_input_correlations_heat(ys, fileOUT):
-    PosMin = -180.
-    PosMax = 180.
-    EneMin = 700. #1000.
+    PosMin = -180. #-180.
+    PosMax = 180. #180.
+    EneMin = 1000. #1000.
     EneMax = 3000.
 
     labelDict={}

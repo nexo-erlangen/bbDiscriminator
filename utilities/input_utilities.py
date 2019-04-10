@@ -45,8 +45,8 @@ def parseInput():
     parser.add_argument('-e', '--epoch', type=int, dest='num_epoch', default=1, help='nb Epochs')
     parser.add_argument('-b', '--batch', type=int, dest='batchsize', default=50, help='Batch Size')
     parser.add_argument('-w', '--weights', dest='num_weights', type=int, default=0, help='Load weights from Epoch')
-    parser.add_argument('-s', '--source', dest='sources', default=['mixed'], nargs="*", choices=['mixed', 'LB', 'bb0n', 'bb0nE', 'bb2n', 'gamma', 'Th228', 'Th232', 'U238', 'Xe135', 'Xe137', 'Bi214', 'Co60', 'Ra226', 'K40'], help='sources for training/validation')
-    parser.add_argument('-p', '--position', dest='position', default=['AllVessel'], nargs='*', choices=['Uni', 'S2', 'S5', 'S8', 'S11', 'AllVessel', 'AllVessel-lowE', 'InnerCryo', 'AirGap', 'reduced'], help='source position')
+    parser.add_argument('-s', '--source', dest='sources', default=['mixed'], nargs="*", choices=['mixed', 'mixed-old', 'LB', 'bb0n', 'bb0nE', 'bb2n', 'gamma', 'Th228', 'Th232', 'U238', 'Xe135', 'Xe137', 'Bi214', 'Co60', 'Ra226', 'K40'], help='sources for training/validation')
+    parser.add_argument('-p', '--position', dest='position', default=['Uni'], nargs='*', choices=['reduced-old', 'Uni', 'S2', 'S5', 'S8', 'S11', 'AllVessel', 'AllVessel-lowE', 'InnerCryo', 'AirGap', 'reduced'], help='source position')
     parser.add_argument('-wp', '--wires', type=str, dest='wires', default='U', choices=['U', 'V', 'UV', 'U+V', 'small'], help='select wire planes')
     parser.add_argument('-v', '--valid', dest='mode', default='train', choices=['train', 'mc', 'data'], help='mode of operation (train/eval (mc/data))')
     parser.add_argument('-l', '--log', type=str, dest='log', default='', nargs='*', help='Specify settings used for training to distinguish between runs')
@@ -106,8 +106,8 @@ def parseInput():
         if type(args.num_weights) == int: args.num_weights = str(args.num_weights).zfill(3)
     if not os.path.exists(args.folderOUT+'models'): os.makedirs(args.folderOUT+'models')
 
-    if args.mode == 'data':
-        args.var_targets = None
+    # if args.mode == 'data':
+    #     args.var_targets = None
 
     print 'Output Folder:\t\t'  , args.folderOUT
     if args.resume: print 'Model Folder:\t\t', args.folderMODEL
@@ -128,7 +128,7 @@ def splitFiles(args, mode, frac_train, frac_val):
     import cPickle as pickle
     files = {}
     if mode == 'train':
-        if args.resume:
+        if args.resume and False:
             os.system("cp %s %s" % (args.folderMODEL + "splitted_files.p", args.folderOUT + "splitted_files.p"))
             print 'load splitted files from %s' % (args.folderMODEL + "splitted_files.p")
             return pickle.load(open(args.folderOUT + "splitted_files.p", "rb"))
@@ -152,17 +152,22 @@ def splitFiles(args, mode, frac_train, frac_val):
                     splitted_files['test'][ending]  = files[ending][1:2]
                     splitted_files['train'][ending] = files[ending][2:3]
                 print "%s\t\t%i\t%i\t%i\t%i" % (ending, len(files[ending]), len(splitted_files['train'][ending]), len(splitted_files['val'][ending]), len(splitted_files['test'][ending]))
+            print splitted_files
+            raw_input('Confirm File List')
             pickle.dump(splitted_files, open(args.folderOUT + "splitted_files.p", "wb"))
             return splitted_files
     elif mode == 'mc':
         files_training = pickle.load(open(args.folderOUT + "splitted_files.p", "rb"))
         for ending in args.endings:
             if ending in files_training['val'].keys() or ending in files_training['test'].keys():
+            # if False and (ending in files_training['val'].keys() or ending in files_training['test'].keys()):
                 files[ending] = files_training['val'][ending] + files_training['test'][ending]
             else:
                 files[ending] = [os.path.join(args.folderIN[ending], f) for f in os.listdir(args.folderIN[ending]) if
                                  os.path.isfile(os.path.join(args.folderIN[ending], f))]
         print 'Input  File:\t\t', (args.folderOUT + "splitted_files.p")
+        print files
+        raw_input('Confirm File List')
         return files
     elif mode == 'data':
         for ending in args.endings:

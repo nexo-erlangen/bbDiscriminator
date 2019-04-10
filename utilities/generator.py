@@ -108,22 +108,22 @@ def generate_batches_from_files(files, batchsize, wires=None, class_type=None, f
                     #     for i in np.nonzero(ys_i[:, id]==1):
                     #         w[i] = w_dict[id]
 
-                    xs_i_aux = np.dstack((eventInfo['CCPosU'][batch],
-                                          eventInfo['CCPosV'][batch],
-                                          eventInfo['CCPosZ'][batch],
-                                          eventInfo['CCCorrectedEnergy'][batch]))
+                    # xs_i_aux = np.dstack((eventInfo['CCPosU'][batch],
+                    #                       eventInfo['CCPosV'][batch],
+                    #                       eventInfo['CCPosZ'][batch],
+                    #                       eventInfo['CCCorrectedEnergy'][batch]))
                     # xs_i_aux = xs_i_aux[..., np.newaxis]
 
                 # if yield_mc_info == 0: yield (xs_i_aux, ys_i)
                 # elif yield_mc_info == 1: yield (xs_i_aux, ys_i) + ({key: eventInfo[key][batch] for key in eventInfo.keys()},)
                 # if yield_mc_info == 0: yield ([xs_i, xs_i_aux], ys_i)
                 # elif yield_mc_info == 1: yield ([xs_i, xs_i_aux], ys_i) + ({key: eventInfo[key][batch] for key in eventInfo.keys()},)
-                if yield_mc_info == 0: yield ([xs_i[0], xs_i[1], xs_i_aux], [ys_i, ys_i])
-                elif yield_mc_info == 1: yield ([xs_i[0], xs_i[1], xs_i_aux], [ys_i, ys_i]) + ({key: eventInfo[key][batch] for key in eventInfo.keys()},)
+                # if yield_mc_info == 0: yield ([xs_i[0], xs_i[1], xs_i_aux], [ys_i, ys_i])
+                # elif yield_mc_info == 1: yield ([xs_i[0], xs_i[1], xs_i_aux], [ys_i, ys_i]) + ({key: eventInfo[key][batch] for key in eventInfo.keys()},)
                 # if yield_mc_info == 0: yield (xs_i, ys_i)
                 # elif yield_mc_info == 1: yield (xs_i, ys_i) + ({key: eventInfo[key][batch] for key in eventInfo.keys()},)
-                # if   yield_mc_info == 0:    yield (list(xs_i), ys_i)
-                # elif yield_mc_info == 1:    yield (list(xs_i), ys_i) + ({ key: eventInfo[key][batch] for key in eventInfo.keys() },)
+                if   yield_mc_info == 0:    yield (list(xs_i), ys_i)
+                elif yield_mc_info == 1:    yield (list(xs_i), ys_i) + ({ key: eventInfo[key][batch] for key in eventInfo.keys() },)
                 elif yield_mc_info == 2:    yield { key: eventInfo[key][batch] for key in eventInfo.keys() }
                 elif yield_mc_info == -1:   yield len(batch)
                 else:   raise ValueError("Wrong argument for yield_mc_info (-1/0/1/2)")
@@ -165,7 +165,8 @@ def select_events(data_dict, select_dict={}, shuffle=True):
 
     mask = np.ones(data_dict.values()[0].shape[0], dtype=bool)
     for key, value in select_dict.items():
-        if key not in data_dict.keys(): raise ValueError('Key not in data dict: %s'%(key))
+        if key not in data_dict.keys():
+            raise ValueError('Key not in data dict: %s'%(key))
         if isinstance(value, list) and len(value) == 1:
             mask = mask & (data_dict[key] == value[0])
         elif isinstance(value, list) and len(value) == 2:
@@ -173,7 +174,8 @@ def select_events(data_dict, select_dict={}, shuffle=True):
         else:
             raise ValueError('Key/Value pair is strange. key: %s . value: %s)'%(key, value))
     lst = np.squeeze(np.argwhere(mask))
-    if shuffle: random.shuffle(lst)
+    if shuffle:
+        random.shuffle(lst)
     return lst
 
 def read_EventInfo_from_files(files, maxNumEvents=0):
@@ -251,8 +253,8 @@ def predict_events(model, generator):
     X, Y_TRUE, EVENT_INFO = generator.next()
     EVENT_INFO['DNNPred'] = np.asarray(model.predict(X, 50))
     EVENT_INFO['DNNTrue'] = np.asarray(Y_TRUE)
-    if len(EVENT_INFO['DNNTrue'].shape) > 1: EVENT_INFO['DNNTrue'] = np.swapaxes(EVENT_INFO['DNNTrue'], 0, 1)
-    if len(EVENT_INFO['DNNPred'].shape) > 1: EVENT_INFO['DNNPred'] = np.swapaxes(EVENT_INFO['DNNPred'], 0, 1)
+    if len(EVENT_INFO['DNNTrue'].shape) == 3: EVENT_INFO['DNNTrue'] = np.swapaxes(EVENT_INFO['DNNTrue'], 0, 1)
+    if len(EVENT_INFO['DNNPred'].shape) == 3: EVENT_INFO['DNNPred'] = np.swapaxes(EVENT_INFO['DNNPred'], 0, 1)
     return EVENT_INFO
 
 def get_events(args, files, model, fOUT):
@@ -293,6 +295,12 @@ def get_events(args, files, model, fOUT):
         EVENT_INFO['DNNPredClass'] = EVENT_INFO['DNNPred'].argmax(axis=-1)
         EVENT_INFO['DNNTrueClass'] = EVENT_INFO['DNNTrue'].argmax(axis=-1)
         EVENT_INFO['DNNPredTrueClass'] = EVENT_INFO['DNNPred'][..., 1]
+
+        # print EVENT_INFO['DNNPredClass'].shape, EVENT_INFO['DNNPred'].shape
+        # print EVENT_INFO['DNNTrueClass'].shape, EVENT_INFO['DNNTrue'].shape
+        # print EVENT_INFO['DNNPredTrueClass'].shape, EVENT_INFO['DNNPred'].shape
+        # exit()
+
         # for i in range(100):
         #     print i, EVENT_INFO['CCIsSS'][i], EVENT_INFO['DNNTrueClass'][i], EVENT_INFO['DNNPredTrueClass'][i]
         # exit()

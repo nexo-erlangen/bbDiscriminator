@@ -169,22 +169,27 @@ def create_shared_inception_network_2_extra_input(kwargs_inc={}):
     auxiliary_flat = Flatten(name='Flatten_Aux_Input')(auxiliary_input)
 
     x = Concatenate(name='Merge_Pos_and_Top')([merge_top, auxiliary_flat])
-    x = Dense(64, activation='relu', kernel_initializer="glorot_uniform", name='31')(x)
+    # x = Dense(64, activation='relu', kernel_initializer="glorot_uniform", name='31')(x)
+    # x = Dense(64, activation='relu', kernel_initializer="glorot_uniform", name='32')(x)
+    # x = Dense(64, activation='relu', kernel_initializer="glorot_uniform", name='33')(x)
+    x = Dense(256, activation='relu', kernel_initializer="glorot_uniform", name='31')(x)
+    x = Dropout(0.3, name='drop_1')(x)
     x = Dense(64, activation='relu', kernel_initializer="glorot_uniform", name='32')(x)
-    x = Dense(64, activation='relu', kernel_initializer="glorot_uniform", name='33')(x)
+    x = Dropout(0.3, name='drop_2')(x)
+    x = Dense(16, activation='relu', kernel_initializer="glorot_uniform", name='33')(x)
     output = Dense(2, name='Output', activation='softmax', kernel_initializer="glorot_uniform")(x)
 
     return Model(inputs=[input[0], input[1], auxiliary_input], outputs=[output, output_top])
 
-
 def create_shared_inception_network_2():
     # kwargs = {'padding': 'same',
-    #           'dropout': 0.0,
+    #           'dropout': 0.2, #TODO TEST DROPOUT
     #           'BN': True,
     #           'kernel_initializer': 'glorot_uniform'}
     #
     # input = []
-    # input.append(Input(shape=(350, 76, 1), name='Wire_1'))
+    # input.append(Input(shape=(350, 38, 1), name='Wire_1'))
+    # input.append(Input(shape=(350, 38, 1), name='Wire_2'))
     #
     # layers = []
     # layers.append(Conv_block(32, filter_size=(3, 3), name='1', **kwargs))
@@ -211,8 +216,7 @@ def create_shared_inception_network_2():
     #
     # paths = assemble_network(input, layers)
     #
-    # # merge = Concatenate(name='Conc_Top_1_and_2')(paths)
-    # merge = paths[0]
+    # merge = Concatenate(name='Conc_Top_1_and_2')(paths)
     # output = Dense(2, name='Output_Top', activation='softmax', kernel_initializer="glorot_uniform")(merge)
     #
     # return Model(inputs=input, outputs=output)
@@ -242,12 +246,47 @@ def create_shared_inception_network_2():
     layers.append(InceptionV1_block(num_filters=num_filters, name='9'))
     layers.append([MaxPooling2D((2, 1), name='10')])
     layers.append(InceptionV1_block(num_filters=num_filters, name='11'))
-    # layers.append(InceptionV1_block(num_filters=num_filters, name='12'))
-    # layers.append([MaxPooling2D((2, 1), name='13')])
-    # layers.append(InceptionV1_block(num_filters=num_filters, name='14'))
-    # layers.append(InceptionV1_block(num_filters=num_filters, name='15'))
-    # layers.append(InceptionV1_block(num_filters=num_filters, name='16'))
-    # layers.append(InceptionV1_block(num_filters=num_filters, name='17'))
+    layers.append(InceptionV1_block(num_filters=num_filters, name='12'))
+    layers.append([MaxPooling2D((2, 1), name='13')])
+    layers.append(InceptionV1_block(num_filters=num_filters, name='14'))
+    layers.append(InceptionV1_block(num_filters=num_filters, name='15'))
+    layers.append(InceptionV1_block(num_filters=num_filters, name='16'))
+    layers.append(InceptionV1_block(num_filters=num_filters, name='17'))
+
+    layers.append([GlobalAveragePooling2D(name='18')])
+
+    paths = assemble_network(input, layers)
+
+    merge = Concatenate(name='Conc_Top_1_and_2')(paths)
+    output = Dense(2, name='Output_Top', activation='softmax', kernel_initializer="glorot_uniform")(merge)
+
+    return Model(inputs=input, outputs=output)
+
+def create_shared_inceptionV4_network_2():
+    kwargs = {'padding': 'same',
+              'dropout': 0.0,
+              'BN': True,
+              'kernel_initializer': 'glorot_uniform'}
+
+    input = []
+    input.append(Input(shape=(350, 38, 1), name='Wire_1'))
+    input.append(Input(shape=(350, 38, 1), name='Wire_2'))
+
+    layers = []
+    layers.append(Conv_block(32, filter_size=(3, 3), name='1', **kwargs))
+    layers.append(Conv_block(32, filter_size=(3, 3), name='2', **kwargs))
+    layers.append([MaxPooling2D((4, 1), name='3')]) #(4,2)
+    layers.append(Conv_block(64, filter_size=(3, 3), name='4', **kwargs))
+
+    num_filters = (96, (64, 96), (64, 96), 96) #TODO Real values from IncV1 Paper?
+    layers.append(InceptionV4_block(num_filters=num_filters, name='5'))
+    layers.append(InceptionV4_block(num_filters=num_filters, name='6'))
+    layers.append([MaxPooling2D((2, 2), name='7')])
+    layers.append(InceptionV4_block(num_filters=num_filters, name='8'))
+    layers.append(InceptionV4_block(num_filters=num_filters, name='9'))
+    layers.append([MaxPooling2D((2, 1), name='10')])
+    layers.append(InceptionV4_block(num_filters=num_filters, name='11'))
+    layers.append(InceptionV4_block(num_filters=num_filters, name='12'))
 
     layers.append([GlobalAveragePooling2D(name='18')])
 
@@ -381,12 +420,6 @@ def InceptionV1_block(num_filters=(64, (64, 96), (48, 64), 32), name='', kwargs_
     branch5x5.append(Conv_block(num_filters[2][1], (5, 5), name='5x5-2_%s'%(name), **kwargs))
     branch5x5 = sum(branch5x5, [])
 
-    # branch7x7 = []
-    # branch7x7.append(Conv_block(num_filters[2][0], (1, 1), **kwargs))
-    # branch7x7.append(Conv_block(num_filters[2][1], (1, 7), **kwargs))
-    # branch7x7.append(Conv_block(num_filters[2][1], (7, 1), **kwargs))
-    # branch7x7 = sum(branch7x7, [])
-
     branch_pool = []
     branch_pool.append([MaxPooling2D((3, 3), strides=(1, 1), padding='same', name='maxp_pool_%s'%(name))])
     branch_pool.append(Conv_block(num_filters[3], (1, 1), name='conv_pool_%s'%(name), **kwargs))
@@ -394,6 +427,53 @@ def InceptionV1_block(num_filters=(64, (64, 96), (48, 64), 32), name='', kwargs_
 
     concat = Concatenate(axis=channel_axis, name='conc_%s'%(name))
 
+    return [branch1x1, branch3x3, branch5x5, branch_pool, concat]
+
+def InceptionV4_block(num_filters=(96, (64, 96), (64, 96), 96), name='', kwargs_inc={}):
+    """
+    2D Inception V1 block. Each Conv2D Element consists of Conv2D, BatchNorm, Activation.
+    Inception towers are: 1x1, 1x1 + 3x3, 1x1 + 5x5, AverPool + 1x1
+    :param tuple num_filters: Kernel sizes which are used for the tower. Ordering like above.
+    :return: x: List of resulting output layers. Concat layer is parsed as last tower.
+    """
+    channel_axis = -1 if K.image_data_format() == "channels_last" else 1
+    kwargs = {'max_pooling': None,
+              'padding': 'same',
+              'dropout': 0.0,
+              'BN': True,
+              'strides': 1,
+              'use_bias': False}
+    kwargs = merge_two_dicts(kwargs, kwargs_inc)
+
+    branch1x1 = []
+    branch1x1.append(Conv_block(num_filters[0], (1, 1), name='1x1_%s'%(name), **kwargs))
+    branch1x1 = sum(branch1x1, [])
+
+    branch3x3 = []
+    branch3x3.append(Conv_block(num_filters[1][0], (1, 1), name='3x3-1_%s'%(name), **kwargs))
+    branch3x3.append(Conv_block(num_filters[1][1], (3, 3), name='3x3-2_%s'%(name), **kwargs))
+    branch3x3 = sum(branch3x3, [])
+
+    branch5x5 = []
+    branch5x5.append(Conv_block(num_filters[2][0], (1, 1), name='5x5-1_%s'%(name), **kwargs))
+    branch5x5.append(Conv_block(num_filters[2][1], (3, 3), name='5x5-2_%s'%(name), **kwargs))
+    branch5x5.append(Conv_block(num_filters[2][1], (3, 3), name='5x5-3_%s' % (name), **kwargs))
+    branch5x5 = sum(branch5x5, [])
+
+    # branch7x7 = []
+    # branch7x7.append(Conv_block(64, (1, 1), name='7x7-1_%s'%(name), **kwargs))
+    # branch7x7.append(Conv_block(96, (1, 7), name='7x7-2_%s'%(name), **kwargs))
+    # branch7x7.append(Conv_block(96, (7, 1), name='7x7-3_%s'%(name), **kwargs))
+    # branch7x7 = sum(branch7x7, [])
+
+    branch_pool = []
+    branch_pool.append([AveragePooling2D((3, 3), strides=(1, 1), padding='same', name='aver_pool_%s'%(name))])
+    branch_pool.append(Conv_block(num_filters[3], (1, 1), name='conv_pool_%s'%(name), **kwargs))
+    branch_pool = sum(branch_pool, [])
+
+    concat = Concatenate(axis=channel_axis, name='conc_%s'%(name))
+
+    # return [branch1x1, branch3x3, branch5x5, branch7x7, branch_pool, concat]
     return [branch1x1, branch3x3, branch5x5, branch_pool, concat]
 
 def InceptionV3_block(x): #TODO Update code

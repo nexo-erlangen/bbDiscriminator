@@ -122,13 +122,20 @@ if __name__ == "__main__":
     x2 = graph.get_tensor_by_name('prefix/Wire_2:0')
     try:
         y = graph.get_tensor_by_name('prefix/Output/Softmax:0')
+        # y = graph.get_tensor_by_name('prefix/Output_Top/Softmax:0')
     except:
         y = graph.get_tensor_by_name('prefix/Output/Relu:0')
+        # y = graph.get_tensor_by_name('prefix/Output_Top/Relu:0')
     print x1,x2,y
 
 
-    files = ['/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_AllVessel_MC_P2/0-shuffled.hdf5']
+    # files = ['/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_AllVessel_MC_P2/0-shuffled.hdf5']
+    # gen = generate_batches_from_files(files, 100, wires='U', class_type=None, f_size=None, select_dict={}, yield_mc_info=0)
+    files = ['/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_Uni_MC_P1/0-shuffled.hdf5']
+    # files = ['/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_reduced_MC_P1/0-shuffled.hdf5']
     gen = generate_batches_from_files(files, 100, wires='U', class_type=None, f_size=None, select_dict={}, yield_mc_info=0)
+    # files = ['/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/mixed_WFs_reduced_MC_P1//0-shuffled.hdf5']
+    # gen = generate_batches_from_files(files, 100, wires='small', class_type=None, f_size=None, select_dict={}, yield_mc_info=0)
 
     # We launch a Session
     with tf.Session(graph=graph) as sess:
@@ -144,10 +151,16 @@ if __name__ == "__main__":
         # for j in range(len(y_out1)):
         #     print y_out1[j, 1], y_out2[j, 1]
 
-    run = '181022-1717/181023-1907/181024-1842'
-    epoch = '025'
-    model_path = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/%s/models/'%(run)
-    model = ks.models.load_model(model_path+'model-000.hdf5')
+    run = '180906-1938/190409-0844' #raw Phase 1
+    epoch = '040'  # raw Phase 1
+    model_path = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/%s/models/' % (run)
+    model = ks.models.load_model(model_path + 'model-000.hdf5')
+
+    # run = '190321-1801/190322-1909'  # energy Phase 1
+    # epoch = '137'  # energy Phase 1
+    # model_path = '/home/vault/capm/sn0515/PhD/Th_U-Wire/MonteCarlo/%s/models/' % (run)
+    # model = ks.models.load_model(model_path + 'model-initial.hdf5')
+
     model.load_weights(model_path+'weights-%s.hdf5'%(epoch))
     print model
     y_out2 = model.predict_on_batch(wfs)

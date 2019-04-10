@@ -25,7 +25,7 @@ print
 files = [f for f in listdir(args.folderIN) if isfile(join(args.folderIN, f)) and '.hdf5' in f]
 
 start, length = 0, 350 #1000, 350
-slice = 1000
+slice = 4000
 batchsize = 1
 fletcher32 = True
 shuffle = False

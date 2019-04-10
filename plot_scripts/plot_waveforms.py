@@ -13,30 +13,34 @@ from utilities import generator as gen
 
 TimeOffset = 1000
 
-# mode = 'single'
-mode = 'sum'
+mode = 'single'
+# mode = 'sum'
 
 EXOPHASE = 1
-position = 'Uni'
+position = 'reduced'
 DataOrMC = 'MC'
-source = 'mixed'
-wires = 'U'
+source = 'gamma'
+wires = 'small'
+number = 50
 
-if position == 'reduced':
-    signals = 'reduced'
-elif mode == 'sum':
+if mode == 'sum':
     signals = 'heat'
+elif 'reduced' in position:
+    signals = 'reduced'
 else:
     signals = 'raw'
+    if number > 200: print 'Warning: many single waveforms chosen:', number
+    raw_input('Confirm')
 
 def main():
+    global  number
     folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/'
     folderIN = folderIN + '%s_WFs_%s_%s_P%s/'%(source, position, DataOrMC, EXOPHASE)
     # folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/test_P1/'
     folderOUT = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Waveforms/%s-P%s/'%(signals, EXOPHASE)
     files = [os.path.join(folderIN, f) for f in os.listdir(folderIN) if os.path.isfile(os.path.join(folderIN, f)) and '.hdf5' in f]
-    number = 10000# 100 #20000 #156000
     generator = gen.generate_batches_from_files(files, 1, wires=wires, class_type=None, f_size=None, yield_mc_info=1)
+    if mode == 'sum' and number == 0: number = gen.getNumEvents(files)
     wf_sum = [None]*3
 
     for idx in xrange(number):
@@ -57,7 +61,7 @@ def main():
                 plot_waveforms_UV(np.asarray(wf), idx, particleID, eventInfo['MCEnergy'], folderOUT)
             else: ValueError('strange waveform shape: %s'%(wf.shape))
         elif mode == 'sum':
-            if idx%1000==0: print idx
+            if idx%1000==0: print idx, 'of', number
             if wf_sum[eventInfo['ID']] is None:
                 print 'initializing wfs:', eventInfo['ID']
                 wf_sum[eventInfo['ID']] = wf
@@ -173,7 +177,7 @@ def plot_waveforms_heat(data, fOUT):
     data = np.squeeze(data)
 
     aspect = "auto"
-    # data /= np.max(np.abs(data))
+    data /= np.max(np.abs(data))
 
     plt.clf()
     f, axarr = plt.subplots(1, 2)
@@ -182,10 +186,10 @@ def plot_waveforms_heat(data, fOUT):
     ax1 = plt.subplot(gs[0])
     ax2 = plt.subplot(gs[1], sharey=ax1)
 
-    # h1 = ax1.imshow(data[0].T, extent=extent, interpolation='nearest', vmin=-1, vmax=1, cmap=plt.get_cmap('RdBu_r'), origin='lower', aspect=aspect) #, norm=colors.Normalize(vmax=1))
-    # h2 = ax2.imshow(data[1].T, extent=extent, interpolation='nearest', vmin=-1, vmax=1, cmap=plt.get_cmap('RdBu_r'), origin='lower', aspect=aspect) #, norm=colors.Normalize(vmax=1))
-    h1 = ax1.imshow(data[0].T, interpolation='nearest', cmap=plt.get_cmap('RdBu_r'), origin='lower', aspect=aspect) #, norm=colors.Normalize(vmax=1))
-    h2 = ax2.imshow(data[1].T, interpolation='nearest', cmap=plt.get_cmap('RdBu_r'), origin='lower', aspect=aspect) #, norm=colors.Normalize(vmax=1))
+    h1 = ax1.imshow(data[0].T, extent=extent, interpolation='nearest', vmin=-1, vmax=1, cmap=plt.get_cmap('RdBu_r'), origin='lower', aspect=aspect) #, norm=colors.Normalize(vmax=1))
+    h2 = ax2.imshow(data[1].T, extent=extent, interpolation='nearest', vmin=-1, vmax=1, cmap=plt.get_cmap('RdBu_r'), origin='lower', aspect=aspect) #, norm=colors.Normalize(vmax=1))
+    # h1 = ax1.imshow(data[0].T, interpolation='nearest', cmap=plt.get_cmap('RdBu_r'), origin='lower', aspect=aspect) #, norm=colors.Normalize(vmax=1))
+    # h2 = ax2.imshow(data[1].T, interpolation='nearest', cmap=plt.get_cmap('RdBu_r'), origin='lower', aspect=aspect) #, norm=colors.Normalize(vmax=1))
 
     f.colorbar(h2, ax=ax2, shrink=0.6)
 

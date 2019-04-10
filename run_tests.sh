@@ -9,7 +9,6 @@ echo '========================================'
 (python ${SCRIPT} -s Th228 -p S5 -v mc ${@:1})
 (python ${SCRIPT} -s Th228 -p S5 -v data ${@:1})
 (python ${SCRIPT_SA} -s Th228 -p S5 ${@:1})
-exit
 
 echo '========================================'
 echo 'run Th228 @S2 Check'

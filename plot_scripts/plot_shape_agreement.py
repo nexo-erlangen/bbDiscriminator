@@ -24,16 +24,17 @@ parser.add_argument('-s', '--source', dest='source', type=str,
 parser.add_argument('-p', '--position', dest='position', type=str,
                     choices=['Uni', 'S2', 'S5', 'S8', 'S11', 'AllVessel', 'AllVessel-lowE', 'InnerCryo', 'AirGap',
                              'reduced'], help='source position')
+parser.add_argument('-wp', '--wires', type=str, dest='wires', default='U', choices=['U', 'V', 'UV', 'U+V', 'small'], help='select wire planes')
 args, unknown = parser.parse_known_args()
 
-source, position, weights = args.source, args.position, str(args.num_weights).zfill(3)
+source, position, weights, wires = args.source, args.position, str(args.num_weights).zfill(3), args.wires
 
-folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/%s/0validation/ShapeAgreement-%s-%s/'%(args.folderMODEL, source, position)
+folderRUNS = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/TrainingRuns/%s/0validation/ShapeAgreement-%s-%s-%s-%s/'%(args.folderMODEL, weights, source, position, wires)
 if not os.path.isdir(folderRUNS):
     os.makedirs(folderRUNS)
 files = {}
-files['1'] = (folderRUNS + '../%s-mc-%s-%s-U/events_%s_%s-mc-%s-U.hdf5')%(source, position, weights, weights, source, position)
-files['2'] = (folderRUNS + '../%s-data-%s-%s-U/events_%s_%s-data-%s-U.hdf5')%(source, position, weights, weights, source, position)
+files['1'] = (folderRUNS + '../%s-mc-%s-%s-%s/events_%s_%s-mc-%s-%s.hdf5')%(source, position, weights, wires, weights, source, position, wires)
+files['2'] = (folderRUNS + '../%s-data-%s-%s-%s/events_%s_%s-data-%s-%s.hdf5')%(source, position, weights, wires, weights, source, position, wires)
 
 for key in files.keys():
     print files[key]
@@ -181,10 +182,18 @@ def main():
         # files[key] = os.path.splitext(files[key])[0] + '.hdf5'
         # write_dict_to_hdf5_file(data=data[key], file=(folderRUNS + files[key]))
 
-    if data['1']['DNNPredTrueClass'].shape[1] > 1:
+    if len(data['1']['DNNPredTrueClass'].shape) > 1:
         plots_multiOutput(data)
         return
 
+    print 'Real data run:', set(data['2']['MCRunNumber'])
+
+    mask1Fid = (np.sum(data['1']['CCIsFiducial'], axis=1) == data['1']['CCNumberClusters']) & (np.sum(data['1']['CCIs3DCluster'], axis=1) == data['1']['CCNumberClusters'])
+    mask2Fid = (np.sum(data['2']['CCIsFiducial'], axis=1) == data['2']['CCNumberClusters']) & (np.sum(data['2']['CCIs3DCluster'], axis=1) == data['2']['CCNumberClusters'])
+    for key in data['1'].keys():
+        data['1'][key] = data['1'][key][mask1Fid]
+    for key in data['2'].keys():
+        data['2'][key] = data['2'][key][mask2Fid]
 
     mask1 = (data['1']['CCIsSS'] == 1) & (data['1']['DNNTrueClass'] == 0)
     mask2 = (data['2']['CCIsSS'] == 1) & (data['2']['DNNTrueClass'] == 0)
@@ -212,7 +221,7 @@ def main():
         'density': False
     }
 
-    e_limit = 2000.
+    e_limit = 1000. #2000.
     maskE1 = np.sum(data['1']['CCPurityCorrectedEnergy'], axis=1) > e_limit
     maskE2 = np.sum(data['2']['CCPurityCorrectedEnergy'], axis=1) > e_limit
     t_limit = 1025
@@ -243,7 +252,7 @@ def main():
 
     kwargs = {
             'range': (1024, 1026),
-        'bins': 250,
+        'bins': 50,
         'density': False
     }
     make_shape_agreement_plot(data['1']['APDTime'][mask1],
@@ -254,7 +263,7 @@ def main():
     print 'std:', np.std(data['1']['APDTime'][mask1])
 
     kwargs = {
-            'range': (0, 110),
+            'range': (0, 120), # (0, 110) for Phase-2
         'bins': 50,
         'density': False
     }
@@ -379,7 +388,7 @@ def main():
         rad2 = np.sqrt(data['2']['CCPosX'][:, 0] * data['2']['CCPosX'][:, 0] + data['2']['CCPosY'][:, 0] * data['2']['CCPosY'][:, 0])
 
         kwargs = {
-            'range': (1000, 3000),
+            'range': (500, 3000),
             'bins': 50,
             'density': False
         }
@@ -393,7 +402,7 @@ def main():
             'density': False
         }
 
-        e_limit = 2000. #2000.
+        e_limit = 1000. #2000.
         maskE1 = np.sum(data['1']['CCPurityCorrectedEnergy'], axis=1) > e_limit
         maskE2 = np.sum(data['2']['CCPurityCorrectedEnergy'], axis=1) > e_limit
         make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & maskE1] , data['2']['DNNPredTrueClass'][mask_2y & mask2 & maskE2] , title, '%s (E gr %d)' % (discriminator, e_limit), **kwargs)
@@ -418,6 +427,12 @@ def main():
         make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & maskZ1 & maskR1] , data['2']['DNNPredTrueClass'][mask_2y & mask2 & maskZ2 & maskR2] , title, '%s (Z gr %d + R le %d)'%(discriminator, z_limit, rad_limit), **kwargs)
         make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & ~(maskZ1 & maskR1)], data['2']['DNNPredTrueClass'][mask_2y & mask2 & ~(maskZ2 & maskR2)], title, '%s not(Z gr %d + R le %d)'%(discriminator, z_limit, rad_limit), **kwargs)
 
+        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & maskZ1 & maskR1 & maskE1],
+                                  data['2']['DNNPredTrueClass'][mask_2y & mask2 & maskZ2 & maskR2 & maskE2], title,
+                                  '%s (Z gr %d + R le %d + E gr %d)' % (discriminator, z_limit, rad_limit, e_limit), **kwargs)
+        make_shape_agreement_plot(data['1']['DNNPredTrueClass'][mask_1y & mask1 & ~(maskZ1 & maskR1 & maskE1)],
+                                  data['2']['DNNPredTrueClass'][mask_2y & mask2 & ~(maskZ2 & maskR2 & maskE2)], title,
+                                  '%s not(Z gr %d + R le %d + E gr %d)' % (discriminator, z_limit, rad_limit, e_limit), **kwargs)
 
         # kwargs = {
         #     'range': (-180, 180),
@@ -436,7 +451,7 @@ def main():
 
 def plots_multiOutput(data):
     mask_1y = data['1']['DNNTrueClass'][:, 0] == 0
-    mask_2y = data['2']['DNNTrueClass'] == 0
+    mask_2y = data['2']['DNNTrueClass'][:, 0] == 0
 
     kwargs = {
         'range': (0, 1),
