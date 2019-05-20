@@ -264,7 +264,7 @@ def LRschedule_stepdecay(epoch):
     initial_lrate = 0.001
     drop = 0.5
     epochs_drop = 5.0
-    epoch -= 15 #fix for resuming from baseline Phase 2 DNN after Epoch 23
+    #epoch -= 15 #fix for resuming from baseline Phase 2 DNN after Epoch 23
     lrate = initial_lrate * np.power(drop, np.floor((1 + epoch) / epochs_drop))
     return lrate
 

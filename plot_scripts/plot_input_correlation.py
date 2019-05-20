@@ -11,9 +11,9 @@ path.append('/home/hpc/capm/sn0515/bbDiscriminator/')
 import utilities.generator as gen
 
 EXOPHASE = 2
-position = 'S5'
+position = 'reducedNoInd'
 DataOrMC = 'MC'
-source = 'Th228'
+source = 'mixed'
 
 def main():
     folderIN = '/home/vault/capm/sn0515/PhD/DeepLearning/bbDiscriminator/Data/%s_WFs_%s_%s_P%s/'%(source, position, DataOrMC, str(EXOPHASE))
@@ -22,12 +22,17 @@ def main():
     files = [os.path.join(folderIN, f) for f in os.listdir(folderIN) if os.path.isfile(os.path.join(folderIN, f))]
 
     print 'start loading'
-    EventInfo = gen.read_EventInfo_from_files(files) #, 25000)
+    EventInfo = gen.read_EventInfo_from_files(files) #, 500000)
     print 'end loading'
 
+#    EventInfo['MCEnergy'] = np.sum(EventInfo['CCPurityCorrectedEnergy'], axis=1)
+#    EventInfo['MCPosX'] = np.ma.masked_equal(EventInfo['CCPosX'], 0.0).mean(axis=1)
+#    EventInfo['MCPosY'] = np.ma.masked_equal(EventInfo['CCPosY'], 0.0).mean(axis=1)
+#    EventInfo['MCPosZ'] = np.ma.masked_equal(EventInfo['CCPosZ'], 0.0).mean(axis=1)
+
     # mask = (EventInfo['MCEnergy'] > 2300.) & (EventInfo['MCEnergy'] < 2600.)
-    mask = (EventInfo['MCEnergy'] >= 700.) & (EventInfo['MCEnergy'] <= 3000.)
-    # mask = (np.sum(EventInfo['CCPurityCorrectedEnergy'], axis=1) >= 2500.) &\
+    mask = (EventInfo['MCEnergy'] >= 1000.) & (EventInfo['MCEnergy'] <= 3000.)
+    #mask = (np.sum(EventInfo['CCPurityCorrectedEnergy'], axis=1) >= 2500.) &\
     #        (np.sum(EventInfo['CCPurityCorrectedEnergy'], axis=1) <= 2800.)
 
     ys = np.asarray([EventInfo['MCEnergy'], # TODO use QValue ?

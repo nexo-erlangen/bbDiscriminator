@@ -779,7 +779,7 @@ def plot_histogram_vs_threshold(fOUT, data, label):
 
     kwargs = {
         'range': (0, 1),
-        'bins': 100,
+        'bins': 50,
         'density': True,
         'facecolor': 'None',
         'histtype': 'step',
@@ -790,10 +790,10 @@ def plot_histogram_vs_threshold(fOUT, data, label):
     for i in xrange(len(data)):
         plt.hist(data[i], label='%s' % (label[i]), **kwargs)
     plt.xlabel('signal-likeness')
-    plt.legend(loc='best')
     # plt.legend(loc='upper left')
     plt.xlim([0, 1])
     plt.ylim(ymin=0)
+    plt.legend(loc='best')
     plt.savefig(fOUT, bbox_inches='tight')
     plt.clf()
     plt.close()

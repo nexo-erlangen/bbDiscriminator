@@ -14,14 +14,14 @@ from utilities import generator as gen
 TimeOffset = 1000
 
 mode = 'single'
-# mode = 'sum'
+#mode = 'sum'
 
-EXOPHASE = 1
-position = 'reduced'
+EXOPHASE = 2
+position = 'Uni'
 DataOrMC = 'MC'
-source = 'gamma'
-wires = 'small'
-number = 50
+source = 'mixed'
+wires = 'U'
+number = 100
 
 if mode == 'sum':
     signals = 'heat'
@@ -144,7 +144,11 @@ def plot_waveforms_U(wf, idx, partID, energy, folderOUT):
         axarr[i].set_title(title, fontsize=16)
         plt.setp(axarr[i].get_yticklabels(), visible=False, fontsize=16)
         for j in xrange(wf.shape[2]):
-            axarr[i].plot(time, wf[i, : , j, 0, 0] + 20. * j, color='k')
+            if np.max(wf[i, :, j, 0, 0]) > 0.01:
+                alpha = 1.0
+            else:
+                alpha = 0.15
+            axarr[i].plot(time, wf[i, : , j, 0, 0] + 20. * j, color="k", alpha=alpha)
         axarr[i].axvline(x=1000, color='k', lw=2)
         axarr[i].axvline(x=1350, color='k', lw=2)
 
